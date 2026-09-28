@@ -57,7 +57,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </nav>
           <div className="hidden items-center gap-2 sm:flex">
             <Button asChild variant="ghost"><Link to="/acceso">Iniciar sesión</Link></Button>
-            <Button asChild><Link to="/acceso" search={{ mode: "registro" }}>Crear cuenta</Link></Button>
+            <Button asChild><Link to="/acceso">Crear cuenta</Link></Button>
           </div>
           <Button
             className="sm:hidden"
