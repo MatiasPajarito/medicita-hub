@@ -15,7 +15,7 @@ export const Route = createFileRoute("/buscar-citas")({ head: () => ({ meta: [
 const doctors = [
   { initials: "CR", name: "Dra. Camila Rojas", specialty: "Medicina general", place: "Clínica Central · Providencia", mode: "Presencial y videollamada", rating: "4,9", slots: ["10:30", "11:15", "16:00"] },
   { initials: "JM", name: "Dr. Javier Muñoz", specialty: "Cardiología", place: "Centro Médico Norte · Las Condes", mode: "Presencial", rating: "4,8", slots: ["09:00", "12:30", "17:15"] },
-  { initials: "AF", name: "Dra. Antonia Fuentes", specialty: "Salud mental", place: "Consulta online", mode: "Videollamada", rating: "5,0", slots: ["11:00", "14:00", "18:30"] },
+  { initials: "AF", name: "Dra. Antonella Gomez", specialty: "Salud mental", place: "Consulta online", mode: "Videollamada", rating: "5,0", slots: ["11:00", "14:00", "18:30"] },
 ];
 
 function SearchAppointments() { return <>
