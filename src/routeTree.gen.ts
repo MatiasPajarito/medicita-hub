@@ -16,6 +16,7 @@ import { Route as BuscarCitasRouteImport } from './routes/buscar-citas'
 import { Route as MedicosRouteImport } from './routes/medicos'
 import { Route as MiAgendaRouteImport } from './routes/mi-agenda'
 import { Route as PortalProfesionalRouteImport } from './routes/portal-profesional'
+import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedPerfilRouteImport } from './routes/_authenticated/perfil'
 
 const IndexRoute = IndexRouteImport.update({
@@ -52,6 +53,11 @@ const PortalProfesionalRoute = PortalProfesionalRouteImport.update({
   path: '/portal-profesional',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedPerfilRoute = AuthenticatedPerfilRouteImport.update({
   id: '/perfil',
   path: '/perfil',
@@ -65,6 +71,7 @@ export interface FileRoutesByFullPath {
   '/medicos': typeof MedicosRoute
   '/mi-agenda': typeof MiAgendaRoute
   '/portal-profesional': typeof PortalProfesionalRoute
+  '/admin': typeof AuthenticatedAdminRoute
   '/perfil': typeof AuthenticatedPerfilRoute
 }
 export interface FileRoutesByTo {
@@ -74,6 +81,7 @@ export interface FileRoutesByTo {
   '/medicos': typeof MedicosRoute
   '/mi-agenda': typeof MiAgendaRoute
   '/portal-profesional': typeof PortalProfesionalRoute
+  '/admin': typeof AuthenticatedAdminRoute
   '/perfil': typeof AuthenticatedPerfilRoute
 }
 export interface FileRoutesById {
@@ -85,6 +93,7 @@ export interface FileRoutesById {
   '/medicos': typeof MedicosRoute
   '/mi-agenda': typeof MiAgendaRoute
   '/portal-profesional': typeof PortalProfesionalRoute
+  '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/perfil': typeof AuthenticatedPerfilRoute
 }
 export interface FileRouteTypes {
@@ -96,6 +105,7 @@ export interface FileRouteTypes {
     | '/medicos'
     | '/mi-agenda'
     | '/portal-profesional'
+    | '/admin'
     | '/perfil'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -105,6 +115,7 @@ export interface FileRouteTypes {
     | '/medicos'
     | '/mi-agenda'
     | '/portal-profesional'
+    | '/admin'
     | '/perfil'
   id:
     | '__root__'
@@ -115,6 +126,7 @@ export interface FileRouteTypes {
     | '/medicos'
     | '/mi-agenda'
     | '/portal-profesional'
+    | '/_authenticated/admin'
     | '/_authenticated/perfil'
   fileRoutesById: FileRoutesById
 }
@@ -179,6 +191,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PortalProfesionalRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/admin': {
+      id: '/_authenticated/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AuthenticatedAdminRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/perfil': {
       id: '/_authenticated/perfil'
       path: '/perfil'
@@ -190,10 +209,12 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
   AuthenticatedPerfilRoute: typeof AuthenticatedPerfilRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAdminRoute: AuthenticatedAdminRoute,
   AuthenticatedPerfilRoute: AuthenticatedPerfilRoute,
 }
 

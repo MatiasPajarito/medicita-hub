@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
-import { doctorSchema, patientSchema } from "@/lib/clinical-schemas";
+import { doctorSchema, normalizeRut, patientSchema } from "@/lib/clinical-schemas";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -38,6 +38,7 @@ export const saveMyPatient = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const payload = {
       ...data,
+      rut_dni: normalizeRut(data.rut_dni),
       blood_type: data.blood_type || null,
       emergency_contact_name: data.emergency_contact_name || null,
       emergency_contact_phone: data.emergency_contact_phone || null,

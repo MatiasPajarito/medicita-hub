@@ -31,7 +31,7 @@ const optionalText = (max: number) => z.string().trim().max(max).default("");
 
 export const patientSchema = z.object({
   full_name: z.string().trim().min(2, "Ingresa tu nombre completo").max(120),
-  rut_dni: z.string().trim().transform(normalizeRut).refine(isValidChileanRut, "Ingresa un RUT chileno válido"),
+  rut_dni: z.string().trim().refine(isValidChileanRut, "Ingresa un RUT chileno válido"),
   email: z.string().trim().email("Ingresa un correo válido").max(255),
   phone: z.string().trim().min(7, "Ingresa un teléfono válido").max(30),
   birth_date: z.string().date("Ingresa una fecha válida").refine((date) => new Date(`${date}T00:00:00`) <= new Date(), "La fecha no puede estar en el futuro"),
@@ -42,14 +42,14 @@ export const patientSchema = z.object({
   chronic_conditions: optionalText(2000),
   medical_history_notes: optionalText(5000),
 });
-export type PatientInput = z.input<typeof patientSchema>;
+export type PatientInput = z.infer<typeof patientSchema>;
 
 export const doctorSchema = z.object({
   full_name: z.string().trim().min(2, "El nombre es obligatorio").max(120),
   specialty: z.enum(specialties, { required_error: "Selecciona una especialidad" }),
   bio: z.string().trim().min(10, "La biografía debe tener al menos 10 caracteres").max(1000),
   photo_url: z.string().trim().url("Ingresa una URL válida").max(1000).or(z.literal("")),
-  consultation_fee: z.coerce.number().int().min(0, "La tarifa no puede ser negativa").max(10000000),
+  consultation_fee: z.number().int().min(0, "La tarifa no puede ser negativa").max(10000000),
   is_active: z.boolean().default(true),
 });
-export type DoctorInput = z.input<typeof doctorSchema>;
+export type DoctorInput = z.infer<typeof doctorSchema>;
