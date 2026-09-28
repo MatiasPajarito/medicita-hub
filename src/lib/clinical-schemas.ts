@@ -27,7 +27,7 @@ export function isValidChileanRut(value: string) {
   return verifier === expected;
 }
 
-const optionalText = (max: number) => z.string().trim().max(max).default("");
+const optionalText = (max: number) => z.string().trim().max(max);
 
 export const patientSchema = z.object({
   full_name: z.string().trim().min(2, "Ingresa tu nombre completo").max(120),
@@ -50,6 +50,6 @@ export const doctorSchema = z.object({
   bio: z.string().trim().min(10, "La biografía debe tener al menos 10 caracteres").max(1000),
   photo_url: z.string().trim().url("Ingresa una URL válida").max(1000).or(z.literal("")),
   consultation_fee: z.number().int().min(0, "La tarifa no puede ser negativa").max(10000000),
-  is_active: z.boolean().default(true),
+  is_active: z.boolean(),
 });
 export type DoctorInput = z.infer<typeof doctorSchema>;

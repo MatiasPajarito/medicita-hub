@@ -53,7 +53,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     await queryClient.cancelQueries();
     queryClient.clear();
     await supabase.auth.signOut();
-    await navigate({ to: "/acceso", replace: true });
+    await navigate({ to: "/acceso", search: { redirect: "/perfil" }, replace: true });
   }
 
   return (
@@ -77,7 +77,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </nav>
           <div className="hidden items-center gap-2 sm:flex">
             <Button asChild variant="ghost"><Link to="/portal-profesional">Portal profesional</Link></Button>
-            {signedIn ? <><Button asChild><Link to="/perfil"><UserRound />Mi perfil</Link></Button><Button variant="ghost" size="icon" aria-label="Cerrar sesión" title="Cerrar sesión" onClick={signOut}><LogOut /></Button></> : <><Button asChild variant="ghost"><Link to="/acceso">Iniciar sesión</Link></Button><Button asChild><Link to="/acceso">Crear cuenta</Link></Button></>}
+            {signedIn ? <><Button asChild><Link to="/perfil"><UserRound />Mi perfil</Link></Button><Button variant="ghost" size="icon" aria-label="Cerrar sesión" title="Cerrar sesión" onClick={signOut}><LogOut /></Button></> : <><Button asChild variant="ghost"><Link to="/acceso" search={{ redirect: "/perfil" }}>Iniciar sesión</Link></Button><Button asChild><Link to="/acceso" search={{ redirect: "/perfil" }}>Crear cuenta</Link></Button></>}
           </div>
           <Button
             className="sm:hidden"
@@ -98,7 +98,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 </Link>
               ))}
               <Link to="/portal-profesional" onClick={() => setOpen(false)} className="flex items-center gap-3 rounded-md px-3 py-3 text-sm font-medium hover:bg-accent"><Stethoscope className="size-4 text-primary" />Portal profesional</Link>
-              <Link to={signedIn ? "/perfil" : "/acceso"} onClick={() => setOpen(false)} className="mt-1 flex items-center gap-3 rounded-md bg-primary px-3 py-3 text-sm font-medium text-primary-foreground"><UserRound className="size-4" />{signedIn ? "Mi perfil" : "Iniciar sesión / Registro"}</Link>
+              {signedIn ? <Link to="/perfil" onClick={() => setOpen(false)} className="mt-1 flex items-center gap-3 rounded-md bg-primary px-3 py-3 text-sm font-medium text-primary-foreground"><UserRound className="size-4" />Mi perfil</Link> : <Link to="/acceso" search={{ redirect: "/perfil" }} onClick={() => setOpen(false)} className="mt-1 flex items-center gap-3 rounded-md bg-primary px-3 py-3 text-sm font-medium text-primary-foreground"><UserRound className="size-4" />Iniciar sesión / Registro</Link>}
               {signedIn && <Button variant="ghost" className="justify-start" onClick={() => { setOpen(false); void signOut(); }}><LogOut />Cerrar sesión</Button>}
             </nav>
           </div>
@@ -114,7 +114,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </Link>
           );
         })}
-        <Link to={signedIn ? "/perfil" : "/acceso"} className={cn("flex flex-col items-center justify-center gap-1 text-[11px] font-medium", pathname === "/perfil" || pathname === "/acceso" ? "text-primary" : "text-muted-foreground")}><UserRound className="size-5" />Perfil</Link>
+        {signedIn ? <Link to="/perfil" className={cn("flex flex-col items-center justify-center gap-1 text-[11px] font-medium", pathname === "/perfil" ? "text-primary" : "text-muted-foreground")}><UserRound className="size-5" />Perfil</Link> : <Link to="/acceso" search={{ redirect: "/perfil" }} className={cn("flex flex-col items-center justify-center gap-1 text-[11px] font-medium", pathname === "/acceso" ? "text-primary" : "text-muted-foreground")}><UserRound className="size-5" />Perfil</Link>}
       </nav>
     </div>
   );

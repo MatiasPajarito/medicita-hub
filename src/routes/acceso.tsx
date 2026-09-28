@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { lovable } from "@/integrations/lovable";
 import { supabase } from "@/lib/supabase";
 
-export const Route = createFileRoute("/acceso")({ validateSearch: (search: Record<string, unknown>) => ({ redirect: typeof search.redirect === "string" && search.redirect.startsWith("/") ? search.redirect : "/perfil" }), head: () => ({ meta: [
+export const Route = createFileRoute("/acceso")({ validateSearch: (search: Record<string, unknown>) => ({ redirect: typeof search['redirect'] === "string" && search['redirect'].startsWith("/") ? search['redirect'] : "/perfil" }), head: () => ({ meta: [
   { title: "Iniciar sesión — MediCita" }, { name: "description", content: "Accede de forma segura a tu cuenta de MediCita." },
   { property: "og:title", content: "Iniciar sesión — MediCita" }, { property: "og:description", content: "Accede a tus citas y atención clínica." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" },
 ] }), component: AccessPage });
