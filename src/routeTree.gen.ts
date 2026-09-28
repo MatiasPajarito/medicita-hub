@@ -10,33 +10,80 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AccesoRouteImport } from './routes/acceso'
+import { Route as BuscarCitasRouteImport } from './routes/buscar-citas'
+import { Route as MiAgendaRouteImport } from './routes/mi-agenda'
+import { Route as PortalProfesionalRouteImport } from './routes/portal-profesional'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AccesoRoute = AccesoRouteImport.update({
+  id: '/acceso',
+  path: '/acceso',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BuscarCitasRoute = BuscarCitasRouteImport.update({
+  id: '/buscar-citas',
+  path: '/buscar-citas',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MiAgendaRoute = MiAgendaRouteImport.update({
+  id: '/mi-agenda',
+  path: '/mi-agenda',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PortalProfesionalRoute = PortalProfesionalRouteImport.update({
+  id: '/portal-profesional',
+  path: '/portal-profesional',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/acceso': typeof AccesoRoute
+  '/buscar-citas': typeof BuscarCitasRoute
+  '/mi-agenda': typeof MiAgendaRoute
+  '/portal-profesional': typeof PortalProfesionalRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/acceso': typeof AccesoRoute
+  '/buscar-citas': typeof BuscarCitasRoute
+  '/mi-agenda': typeof MiAgendaRoute
+  '/portal-profesional': typeof PortalProfesionalRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/acceso': typeof AccesoRoute
+  '/buscar-citas': typeof BuscarCitasRoute
+  '/mi-agenda': typeof MiAgendaRoute
+  '/portal-profesional': typeof PortalProfesionalRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    '/' | '/acceso' | '/buscar-citas' | '/mi-agenda' | '/portal-profesional'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/acceso' | '/buscar-citas' | '/mi-agenda' | '/portal-profesional'
+  id:
+    | '__root__'
+    | '/'
+    | '/acceso'
+    | '/buscar-citas'
+    | '/mi-agenda'
+    | '/portal-profesional'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AccesoRoute: typeof AccesoRoute
+  BuscarCitasRoute: typeof BuscarCitasRoute
+  MiAgendaRoute: typeof MiAgendaRoute
+  PortalProfesionalRoute: typeof PortalProfesionalRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +95,43 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/acceso': {
+      id: '/acceso'
+      path: '/acceso'
+      fullPath: '/acceso'
+      preLoaderRoute: typeof AccesoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/buscar-citas': {
+      id: '/buscar-citas'
+      path: '/buscar-citas'
+      fullPath: '/buscar-citas'
+      preLoaderRoute: typeof BuscarCitasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mi-agenda': {
+      id: '/mi-agenda'
+      path: '/mi-agenda'
+      fullPath: '/mi-agenda'
+      preLoaderRoute: typeof MiAgendaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/portal-profesional': {
+      id: '/portal-profesional'
+      path: '/portal-profesional'
+      fullPath: '/portal-profesional'
+      preLoaderRoute: typeof PortalProfesionalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AccesoRoute: AccesoRoute,
+  BuscarCitasRoute: BuscarCitasRoute,
+  MiAgendaRoute: MiAgendaRoute,
+  PortalProfesionalRoute: PortalProfesionalRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
