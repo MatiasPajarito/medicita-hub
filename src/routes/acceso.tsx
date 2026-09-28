@@ -17,12 +17,13 @@ import { supabase } from "@/lib/supabase";
 export const Route = createFileRoute("/acceso")({
   validateSearch: (search: Record<string, unknown>) => ({
     redirect: typeof search["redirect"] === "string" && search["redirect"].startsWith("/") ? search["redirect"] : "/perfil",
+    mode: search["mode"] === "registro" ? ("registro" as const) : ("login" as const),
   }),
   head: () => ({
     meta: [
-      { title: "Iniciar sesión — MediCita" },
+      { title: "Acceso — MediCita" },
       { name: "description", content: "Accede de forma segura a tu cuenta de MediCita." },
-      { property: "og:title", content: "Iniciar sesión — MediCita" },
+      { property: "og:title", content: "Acceso — MediCita" },
       { property: "og:description", content: "Accede a tus citas y atención clínica." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -45,15 +46,21 @@ const signUpSchema = z.object({
 type SignUpInput = z.infer<typeof signUpSchema>;
 
 function AccessPage() {
-  const [registering, setRegistering] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
-  const { redirect } = Route.useSearch();
+  const { redirect, mode } = Route.useSearch();
+  const isRegistering = mode === "registro";
 
   const form = useForm<SignUpInput>({
     resolver: zodResolver(signUpSchema),
     defaultValues: { full_name: "", rut_dni: "", birth_date: "", email: "", password: "" },
   });
+
+  const toggleMode = (targetMode: "login" | "registro") => {
+    navigate({
+      search: (prev) => ({ ...prev, mode: targetMode }),
+    });
+  };
 
   async function signIn(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -135,14 +142,14 @@ function AccessPage() {
       </div>
       <Card className="mx-auto w-full max-w-md shadow-clinical">
         <CardContent className="p-6 sm:p-8">
-          <h2 className="text-2xl font-bold">{registering ? "Crea tu cuenta" : "Bienvenido a MediCita"}</h2>
+          <h2 className="text-2xl font-bold">{isRegistering ? "Crea tu cuenta" : "Bienvenido a MediCita"}</h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            {registering
+            {isRegistering
               ? "Regístrate con tus datos de paciente para agendar citas."
               : "Ingresa para administrar tu salud."}
           </p>
 
-          {registering ? (
+          {isRegistering ? (
             <Form {...form}>
               <form className="mt-7 grid gap-4" onSubmit={form.handleSubmit(signUp)}>
                 <FormField
@@ -263,9 +270,14 @@ function AccessPage() {
             Continuar con Google
           </Button>
           <p className="mt-6 text-center text-sm text-muted-foreground">
-            {registering ? "¿Ya tienes cuenta?" : "¿Aún no tienes cuenta?"}{" "}
-            <Button type="button" variant="link" className="h-auto p-0 font-bold" onClick={() => setRegistering((value) => !value)}>
-              {registering ? "Iniciar sesión" : "Crear cuenta"}
+            {isRegistering ? "¿Ya tienes cuenta?" : "¿Aún no tienes cuenta?"}{" "}
+            <Button
+              type="button"
+              variant="link"
+              className="h-auto p-0 font-bold"
+              onClick={() => toggleMode(isRegistering ? "login" : "registro")}
+            >
+              {isRegistering ? "Iniciar sesión" : "Crear cuenta"}
             </Button>
           </p>
           <Link to="/" className="mt-4 block text-center text-xs text-muted-foreground hover:text-foreground">
