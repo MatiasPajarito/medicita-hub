@@ -12,3 +12,4 @@
 ## Project architecture
 
 - Keep public product areas as independent TanStack routes inside the shared MediCita AppShell so navigation, metadata, and mobile access stay consistent.
+- Import the configured browser database client through `@/lib/supabase`; keep privileged access inside authenticated server functions so database policies remain authoritative.

@@ -3,22 +3,26 @@ import {
   CalendarDays,
   HeartPulse,
   Home,
+  LogOut,
   Menu,
   Search,
   Stethoscope,
   UserRound,
   X,
 } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
+import { useEffect, useState, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/lib/supabase";
 
 const navItems = [
   { to: "/" as const, label: "Inicio", mobileLabel: "Inicio", icon: Home },
   { to: "/buscar-citas" as const, label: "Buscar citas", mobileLabel: "Buscar", icon: Search },
+  { to: "/medicos" as const, label: "Profesionales", mobileLabel: "Médicos", icon: Stethoscope },
   { to: "/mi-agenda" as const, label: "Mi agenda", mobileLabel: "Mis citas", icon: CalendarDays },
-  { to: "/portal-profesional" as const, label: "Portal profesional", mobileLabel: "Portal", icon: Stethoscope },
 ];
 
 export function MediCitaLogo() {
@@ -34,7 +38,23 @@ export function MediCitaLogo() {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
+  const [signedIn, setSignedIn] = useState(false);
   const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    void supabase.auth.getSession().then(({ data }) => setSignedIn(Boolean(data.session)));
+    const { data } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_IN" || event === "SIGNED_OUT" || event === "USER_UPDATED") setSignedIn(Boolean(session));
+    });
+    return () => data.subscription.unsubscribe();
+  }, []);
+  async function signOut() {
+    await queryClient.cancelQueries();
+    queryClient.clear();
+    await supabase.auth.signOut();
+    await navigate({ to: "/acceso", search: { redirect: "/perfil" }, replace: true });
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -56,8 +76,8 @@ export function AppShell({ children }: { children: ReactNode }) {
             ))}
           </nav>
           <div className="hidden items-center gap-2 sm:flex">
-            <Button asChild variant="ghost"><Link to="/acceso">Iniciar sesión</Link></Button>
-            <Button asChild><Link to="/acceso">Crear cuenta</Link></Button>
+            <Button asChild variant="ghost"><Link to="/portal-profesional">Portal profesional</Link></Button>
+            {signedIn ? <><Button asChild><Link to="/perfil"><UserRound />Mi perfil</Link></Button><Button variant="ghost" size="icon" aria-label="Cerrar sesión" title="Cerrar sesión" onClick={signOut}><LogOut /></Button></> : <><Button asChild variant="ghost"><Link to="/acceso" search={{ redirect: "/perfil" }}>Iniciar sesión</Link></Button><Button asChild><Link to="/acceso" search={{ redirect: "/perfil" }}>Crear cuenta</Link></Button></>}
           </div>
           <Button
             className="sm:hidden"
@@ -77,15 +97,15 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <Icon className="size-4 text-primary" />{label}
                 </Link>
               ))}
-              <Link to="/acceso" onClick={() => setOpen(false)} className="mt-1 flex items-center gap-3 rounded-md bg-primary px-3 py-3 text-sm font-medium text-primary-foreground">
-                <UserRound className="size-4" /> Iniciar sesión / Registro
-              </Link>
+              <Link to="/portal-profesional" onClick={() => setOpen(false)} className="flex items-center gap-3 rounded-md px-3 py-3 text-sm font-medium hover:bg-accent"><Stethoscope className="size-4 text-primary" />Portal profesional</Link>
+              {signedIn ? <Link to="/perfil" onClick={() => setOpen(false)} className="mt-1 flex items-center gap-3 rounded-md bg-primary px-3 py-3 text-sm font-medium text-primary-foreground"><UserRound className="size-4" />Mi perfil</Link> : <Link to="/acceso" search={{ redirect: "/perfil" }} onClick={() => setOpen(false)} className="mt-1 flex items-center gap-3 rounded-md bg-primary px-3 py-3 text-sm font-medium text-primary-foreground"><UserRound className="size-4" />Iniciar sesión / Registro</Link>}
+              {signedIn && <Button variant="ghost" className="justify-start" onClick={() => { setOpen(false); void signOut(); }}><LogOut />Cerrar sesión</Button>}
             </nav>
           </div>
         )}
       </header>
       <main className="pb-20 sm:pb-0">{children}</main>
-      <nav className="fixed inset-x-0 bottom-0 z-40 grid h-16 grid-cols-4 border-t border-border bg-background/95 px-1 backdrop-blur sm:hidden" aria-label="Navegación inferior">
+      <nav className="fixed inset-x-0 bottom-0 z-40 grid h-16 grid-cols-5 border-t border-border bg-background/95 px-1 backdrop-blur sm:hidden" aria-label="Navegación inferior">
         {navItems.map(({ to, mobileLabel, icon: Icon }) => {
           const active = pathname === to;
           return (
@@ -94,6 +114,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </Link>
           );
         })}
+        {signedIn ? <Link to="/perfil" className={cn("flex flex-col items-center justify-center gap-1 text-[11px] font-medium", pathname === "/perfil" ? "text-primary" : "text-muted-foreground")}><UserRound className="size-5" />Perfil</Link> : <Link to="/acceso" search={{ redirect: "/perfil" }} className={cn("flex flex-col items-center justify-center gap-1 text-[11px] font-medium", pathname === "/acceso" ? "text-primary" : "text-muted-foreground")}><UserRound className="size-5" />Perfil</Link>}
       </nav>
     </div>
   );
