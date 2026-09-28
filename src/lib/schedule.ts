@@ -3,7 +3,7 @@ import { z } from "zod";
 export const weekDays = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"] as const;
 
 const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Hora inválida");
-const toMin = (t: string) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; };
+const toMin = (t: string) => { const [h = 0, m = 0] = t.split(":").map(Number); return h * 60 + m; };
 const fromMin = (n: number) => `${String(Math.floor(n / 60)).padStart(2, "0")}:${String(n % 60).padStart(2, "0")}`;
 
 export const dayRuleSchema = z.object({
@@ -31,7 +31,7 @@ export const defaultDay = (day: number): DayRule => ({
 /** Monday-based index (0 = Lunes … 6 = Domingo) for a JS date. */
 export const mondayIndex = (date: Date) => (date.getDay() + 6) % 7;
 
-export type Slot = { time: string; available: boolean; reason?: "pausa" | "pasado" };
+export type Slot = { time: string; available: boolean; reason?: "pausa" | "pasado" | undefined };
 
 /** Generate selectable slots for a date from its weekly rule. */
 export function generateSlots(rule: DayRule | undefined, date: Date, now = new Date()): Slot[] {

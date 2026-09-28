@@ -53,7 +53,7 @@ function AvailabilityPage() {
   }, [weekOffset]);
 
   async function onSave() {
-    if (errors.some(Boolean)) return toast.error("Revisa los horarios marcados con error");
+    if (errors.some(Boolean)) { toast.error("Revisa los horarios marcados con error"); return; }
     setSaving(true);
     try { await save({ data: { days } }); await qc.invalidateQueries({ queryKey: ["my-schedule"] }); toast.success("Disponibilidad guardada"); }
     catch (e) { toast.error(e instanceof Error ? e.message : "No pudimos guardar"); }
@@ -101,7 +101,7 @@ function AvailabilityPage() {
             <CardTitle>Vista previa de bloques</CardTitle>
             <div className="flex items-center gap-2">
               <Button variant="outline" size="icon" aria-label="Semana anterior" disabled={weekOffset === 0} onClick={() => setWeekOffset((w) => w - 1)}><ChevronLeft /></Button>
-              <span className="text-sm font-medium">{weekDates[0].toLocaleDateString("es-CL", { day: "numeric", month: "short" })} – {weekDates[6].toLocaleDateString("es-CL", { day: "numeric", month: "short" })}</span>
+              <span className="text-sm font-medium">{weekDates[0]!.toLocaleDateString("es-CL", { day: "numeric", month: "short" })} – {weekDates[6]!.toLocaleDateString("es-CL", { day: "numeric", month: "short" })}</span>
               <Button variant="outline" size="icon" aria-label="Semana siguiente" onClick={() => setWeekOffset((w) => w + 1)}><ChevronRight /></Button>
             </div>
           </CardHeader>
