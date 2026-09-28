@@ -13,8 +13,9 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { bloodTypes, patientSchema, type PatientInput } from "@/lib/clinical-schemas";
-import { getMyPatient, saveMyPatient } from "@/lib/clinical.functions";
+import { bloodTypes, normalizeRut, patientSchema, type PatientInput } from "@/lib/clinical-schemas";
+import { getMyPatient } from "@/lib/clinical.functions";
+import { supabase } from "@/lib/supabase";
 
 export const Route = createFileRoute("/_authenticated/perfil")({
   head: () => ({ meta: [
@@ -27,7 +28,6 @@ const emptyValues: PatientInput = { full_name: "", rut_dni: "", email: "", phone
 
 function PatientProfile() {
   const loadProfile = useServerFn(getMyPatient);
-  const saveProfile = useServerFn(saveMyPatient);
   const queryClient = useQueryClient();
   const profile = useQuery({ queryKey: ["patient-profile"], queryFn: () => loadProfile() });
   const form = useForm<PatientInput>({ resolver: zodResolver(patientSchema), defaultValues: emptyValues });
