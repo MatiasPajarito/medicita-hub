@@ -71,7 +71,7 @@ function AccessPage() {
       toast.error(result.error.message);
       return;
     }
-    await navigate({ to: redirect });
+    await navigate({ href: redirect });
   }
 
   async function signUp(data: SignUpInput) {
@@ -109,7 +109,7 @@ function AccessPage() {
       return;
     }
     toast.success(`¡Bienvenido/a a MediCita, ${data.full_name.split(" ")[0]}! Tu cuenta y ficha están listas.`);
-    await navigate({ to: redirect });
+    await navigate({ href: redirect });
   }
 
   async function signInGoogle() {
