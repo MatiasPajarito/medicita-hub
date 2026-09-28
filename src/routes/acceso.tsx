@@ -47,7 +47,7 @@ type SignUpInput = z.infer<typeof signUpSchema>;
 function AccessPage() {
   const [registering, setRegistering] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const navigate = useNavigate({ from: "/acceso" });
+  const navigate = useNavigate();
   const { redirect } = Route.useSearch();
 
   const form = useForm<SignUpInput>({
