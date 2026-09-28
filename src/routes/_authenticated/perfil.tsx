@@ -31,7 +31,7 @@ function PatientProfile() {
   const queryClient = useQueryClient();
   const profile = useQuery({ queryKey: ["patient-profile"], queryFn: () => loadProfile() });
   const form = useForm<PatientInput>({ resolver: zodResolver(patientSchema), defaultValues: emptyValues });
-  useEffect(() => { if (profile.data) form.reset({ ...profile.data, blood_type: profile.data.blood_type ?? "", emergency_contact_name: profile.data.emergency_contact_name ?? "", emergency_contact_phone: profile.data.emergency_contact_phone ?? "" }); }, [profile.data, form]);
+  useEffect(() => { if (profile.data) form.reset({ full_name: profile.data.full_name, rut_dni: profile.data.rut_dni, email: profile.data.email, phone: profile.data.phone, birth_date: profile.data.birth_date, blood_type: bloodTypes.find((type) => type === profile.data?.blood_type) ?? "", emergency_contact_name: profile.data.emergency_contact_name ?? "", emergency_contact_phone: profile.data.emergency_contact_phone ?? "", allergies: profile.data.allergies, chronic_conditions: profile.data.chronic_conditions, medical_history_notes: profile.data.medical_history_notes }); }, [profile.data, form]);
   const onSubmit = form.handleSubmit(async (values) => {
     try { await saveProfile({ data: values }); await queryClient.invalidateQueries({ queryKey: ["patient-profile"] }); toast.success("Perfil guardado correctamente"); }
     catch (error) { toast.error(error instanceof Error ? error.message : "No pudimos guardar tu perfil"); }
