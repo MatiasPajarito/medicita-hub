@@ -10,14 +10,21 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AccesoRouteImport } from './routes/acceso'
 import { Route as BuscarCitasRouteImport } from './routes/buscar-citas'
+import { Route as MedicosRouteImport } from './routes/medicos'
 import { Route as MiAgendaRouteImport } from './routes/mi-agenda'
 import { Route as PortalProfesionalRouteImport } from './routes/portal-profesional'
+import { Route as AuthenticatedPerfilRouteImport } from './routes/_authenticated/perfil'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AccesoRoute = AccesoRouteImport.update({
@@ -30,6 +37,11 @@ const BuscarCitasRoute = BuscarCitasRouteImport.update({
   path: '/buscar-citas',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MedicosRoute = MedicosRouteImport.update({
+  id: '/medicos',
+  path: '/medicos',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MiAgendaRoute = MiAgendaRouteImport.update({
   id: '/mi-agenda',
   path: '/mi-agenda',
@@ -40,48 +52,78 @@ const PortalProfesionalRoute = PortalProfesionalRouteImport.update({
   path: '/portal-profesional',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedPerfilRoute = AuthenticatedPerfilRouteImport.update({
+  id: '/perfil',
+  path: '/perfil',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/acceso': typeof AccesoRoute
   '/buscar-citas': typeof BuscarCitasRoute
+  '/medicos': typeof MedicosRoute
   '/mi-agenda': typeof MiAgendaRoute
   '/portal-profesional': typeof PortalProfesionalRoute
+  '/perfil': typeof AuthenticatedPerfilRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/acceso': typeof AccesoRoute
   '/buscar-citas': typeof BuscarCitasRoute
+  '/medicos': typeof MedicosRoute
   '/mi-agenda': typeof MiAgendaRoute
   '/portal-profesional': typeof PortalProfesionalRoute
+  '/perfil': typeof AuthenticatedPerfilRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/acceso': typeof AccesoRoute
   '/buscar-citas': typeof BuscarCitasRoute
+  '/medicos': typeof MedicosRoute
   '/mi-agenda': typeof MiAgendaRoute
   '/portal-profesional': typeof PortalProfesionalRoute
+  '/_authenticated/perfil': typeof AuthenticatedPerfilRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/acceso' | '/buscar-citas' | '/mi-agenda' | '/portal-profesional'
-  fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/acceso' | '/buscar-citas' | '/mi-agenda' | '/portal-profesional'
-  id:
-    | '__root__'
     | '/'
     | '/acceso'
     | '/buscar-citas'
+    | '/medicos'
     | '/mi-agenda'
     | '/portal-profesional'
+    | '/perfil'
+  fileRoutesByTo: FileRoutesByTo
+  to:
+    | '/'
+    | '/acceso'
+    | '/buscar-citas'
+    | '/medicos'
+    | '/mi-agenda'
+    | '/portal-profesional'
+    | '/perfil'
+  id:
+    | '__root__'
+    | '/'
+    | '/_authenticated'
+    | '/acceso'
+    | '/buscar-citas'
+    | '/medicos'
+    | '/mi-agenda'
+    | '/portal-profesional'
+    | '/_authenticated/perfil'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AccesoRoute: typeof AccesoRoute
   BuscarCitasRoute: typeof BuscarCitasRoute
+  MedicosRoute: typeof MedicosRoute
   MiAgendaRoute: typeof MiAgendaRoute
   PortalProfesionalRoute: typeof PortalProfesionalRoute
 }
@@ -93,6 +135,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/acceso': {
@@ -109,6 +158,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BuscarCitasRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/medicos': {
+      id: '/medicos'
+      path: '/medicos'
+      fullPath: '/medicos'
+      preLoaderRoute: typeof MedicosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/mi-agenda': {
       id: '/mi-agenda'
       path: '/mi-agenda'
@@ -123,13 +179,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PortalProfesionalRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/perfil': {
+      id: '/_authenticated/perfil'
+      path: '/perfil'
+      fullPath: '/perfil'
+      preLoaderRoute: typeof AuthenticatedPerfilRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedPerfilRoute: typeof AuthenticatedPerfilRoute
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedPerfilRoute: AuthenticatedPerfilRoute,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AccesoRoute: AccesoRoute,
   BuscarCitasRoute: BuscarCitasRoute,
+  MedicosRoute: MedicosRoute,
   MiAgendaRoute: MiAgendaRoute,
   PortalProfesionalRoute: PortalProfesionalRoute,
 }
