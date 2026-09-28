@@ -46,7 +46,6 @@ const emptyValues: PatientInput = {
 function PatientProfile() {
   const queryClient = useQueryClient();
 
-  // Carga directa de la ficha de paciente desde Supabase con la sesión del cliente
   const profile = useQuery({
     queryKey: ["patient-profile"],
     queryFn: async () => {
@@ -183,6 +182,7 @@ function PatientProfile() {
                       <FormItem>
                         <FormLabel>Grupo sanguíneo</FormLabel>
                         <Select
+                          key={field.value || "empty"}
                           value={field.value || undefined}
                           onValueChange={(val) => field.onChange(val)}
                         >
