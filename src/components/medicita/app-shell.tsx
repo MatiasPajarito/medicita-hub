@@ -85,7 +85,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     queryClient.clear();
     await supabase.auth.signOut();
     setIsDoctor(false);
-    await navigate({ to: "/acceso", search: { redirect: "/perfil", mode: "login" }, replace: true });
+    await navigate({ to: "/acceso", search: { redirect: "/", mode: "login" }, replace: true });
   }
 
   return (
@@ -138,12 +138,12 @@ export function AppShell({ children }: { children: ReactNode }) {
             ) : (
               <>
                 <Button asChild variant="ghost">
-                  <Link to="/acceso" search={{ redirect: "/perfil", mode: "login" }}>
+                  <Link to="/acceso" search={{ redirect: "/", mode: "login" }}>
                     Iniciar sesión
                   </Link>
                 </Button>
                 <Button asChild>
-                  <Link to="/acceso" search={{ redirect: "/perfil", mode: "registro" }}>
+                  <Link to="/acceso" search={{ redirect: "/", mode: "registro" }}>
                     Crear cuenta
                   </Link>
                 </Button>
@@ -225,7 +225,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <div className="grid gap-2 pt-2">
                   <Link
                     to="/acceso"
-                    search={{ redirect: "/perfil", mode: "login" }}
+                    search={{ redirect: "/", mode: "login" }}
                     onClick={() => setOpen(false)}
                     className="flex items-center justify-center rounded-md border border-input py-2.5 text-sm font-medium hover:bg-accent"
                   >
@@ -233,7 +233,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   </Link>
                   <Link
                     to="/acceso"
-                    search={{ redirect: "/perfil", mode: "registro" }}
+                    search={{ redirect: "/", mode: "registro" }}
                     onClick={() => setOpen(false)}
                     className="flex items-center justify-center rounded-md bg-primary py-2.5 text-sm font-medium text-primary-foreground"
                   >
@@ -282,7 +282,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         ) : (
           <Link
             to="/acceso"
-            search={{ redirect: "/perfil", mode: "login" }}
+            search={{ redirect: "/", mode: "login" }}
             className={cn(
               "flex flex-col items-center justify-center gap-1 text-[11px] font-medium",
               pathname === "/acceso" ? "text-primary" : "text-muted-foreground",
