@@ -16,7 +16,7 @@ import { supabase } from "@/lib/supabase";
 
 export const Route = createFileRoute("/acceso")({
   validateSearch: (search: Record<string, unknown>) => ({
-    redirect: typeof search["redirect"] === "string" && search["redirect"].startsWith("/") ? search["redirect"] : "/perfil",
+    redirect: typeof search["redirect"] === "string" && search["redirect"].startsWith("/") ? search["redirect"] : "/",
     mode: search["mode"] === "registro" ? ("registro" as const) : ("login" as const),
   }),
   head: () => ({
@@ -78,7 +78,7 @@ function AccessPage() {
       toast.error(result.error.message);
       return;
     }
-    await navigate({ to: redirect as "/perfil" });
+    await navigate({ to: redirect as "/" });
   }
 
   async function signUp(data: SignUpInput) {
@@ -111,18 +111,18 @@ function AccessPage() {
     setSubmitting(false);
     if (error) {
       if (error.code === "23505") toast.error("Este RUT ya está registrado con otra cuenta.");
-      else toast.error("Tu cuenta fue creada, pero no pudimos guardar tu ficha. Complétala en tu perfil.");
-      await navigate({ to: "/perfil" });
+      else toast.error("Tu cuenta fue creada, pero no pudimos guardar tu ficha inicial.");
+      await navigate({ to: redirect as "/" });
       return;
     }
-    toast.success(`¡Bienvenido/a a MediCita, ${data.full_name.split(" ")[0]}! Tu cuenta y ficha están listas.`);
-    await navigate({ to: redirect as "/perfil" });
+    toast.success(`¡Bienvenido/a a MediCita, ${data.full_name.split(" ")[0]}! Tu cuenta está lista.`);
+    await navigate({ to: redirect as "/" });
   }
 
   async function signInGoogle() {
     const result = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
     if (result.error) toast.error(result.error.message);
-    else if (!result.redirected) await navigate({ to: "/perfil" });
+    else if (!result.redirected) await navigate({ to: "/" });
   }
 
   return (
