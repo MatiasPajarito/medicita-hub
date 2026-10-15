@@ -8,9 +8,11 @@ Sistema web integral para la reserva de horas médicas presenciales y por teleme
 ---
 
 ## 👥 Equipo de Desarrollo
-- **Matías Pajarito** — *Product Owner & Fullstack Developer*
-- **[Nombre Compañero 1]** — *Frontend Developer & UI/UX*
-- **[Nombre Compañero 2]** — *Backend & Database Developer*
+- **Alberto Oñate**
+- **Cristobal Barahona**
+- **Ignacio Serraro** 
+- **Matías Farías**
+- **Matías Pajarito** 
 
 ---
 
