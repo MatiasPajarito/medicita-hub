@@ -1,42 +1,37 @@
-# MediCita Hub
+# MediCita — Plataforma de Gestión y Agendamiento Clínico
 
-"Quiero transformar esta aplicación en MediCita, una plataforma SaaS para agendamiento clínico, fichas de pacientes y telemedicina.
+Sistema web integral para la reserva de horas médicas presenciales y por telemedicina, gestión de fichas clínicas y administración de disponibilidad horaria profesional.
 
-Realiza los siguientes cambios estructurales y visuales:
+- **Despliegue en producción:** [https://medicita-hub.vercel.app](https://medicita-hub.vercel.app)
+- **Seguimiento del proyecto:** GitHub Projects (Metodología Ágil / MoSCoW)
 
-Identidad y Tema: Cambia el branding a MediCita. Usa una paleta de colores limpia y moderna de salud (azules clínicos tipo #0284c7, verde esmeralda para confirmaciones y fondo blanco/gris pizarra neutro con soporte para modo oscuro).
+---
 
-Navegación Principal (AppShell): Adapta la barra de navegación con los siguientes accesos:
+## 👥 Equipo de Desarrollo
+- **Matías Pajarito** — *Product Owner & Fullstack Developer*
+- **[Nombre Compañero 1]** — *Frontend Developer & UI/UX*
+- **[Nombre Compañero 2]** — *Backend & Database Developer*
 
-Inicio / Especialidades
+---
 
-Buscar Citas (filtro por especialidad, profesional y fecha)
+## 🛠️ Stack Tecnológico
+- **Frontend / Framework:** React 18, TanStack Router / TanStack Start, TypeScript
+- **Estilos & UI:** Tailwind CSS, Shadcn UI, Lucide Icons
+- **Backend & Base de Datos:** Supabase (PostgreSQL, Supabase Auth, Row Level Security)
+- **CI/CD & Hosting:** Vercel sincronizado con GitHub
 
-Mi Agenda / Mis Citas
+---
 
-Portal Profesional / Admin
+## 🎯 Alcance del Sprint 1 (Core MVP)
+- **[MUST-01] Identidad y Ficha de Paciente:** Registro con Supabase Auth, persistencia de antecedentes clínicos, RUT y grupo sanguíneo. *(Estado: Done)*
+- **[MUST-02] Directorio de Profesionales:** Catálogo dinámico de especialistas de la salud con bio y modalidad de consulta. *(Estado: In Progress)*
+- **[MUST-03] Disponibilidad Horaria:** Definición de bloques y franjas horarias semanales para atención médica. *(Estado: In Progress)*
 
-Iniciar Sesión / Registro
+---
 
-Eliminar contexto anterior: Quita toda referencia a básquetbol, torneos, partidos, cuartos, tablas de posiciones y clubes. Mantén la arquitectura de componentes shadcn/ui y la integración con Supabase."
+## 🚀 Ejecución en Entorno Local
 
-This project was built with [Lovable](https://lovable.dev).
-
-## Build with Lovable
-
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/23f5097e-a7e7-43e1-882b-eb316336e302).
-
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
-
-## Development
-
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
-
-```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
-npm run dev
-```
+1. Clonar el repositorio:
+   ```bash
+   git clone [https://github.com/MatiasPajarito/medicita-hub.git](https://github.com/MatiasPajarito/medicita-hub.git)
+   cd medicita-hub
