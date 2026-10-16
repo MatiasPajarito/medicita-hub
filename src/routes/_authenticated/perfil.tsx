@@ -183,7 +183,7 @@ function PatientProfile() {
                         <FormLabel>Grupo sanguíneo</FormLabel>
                         <Select
                           key={field.value || "empty"}
-                          value={field.value || undefined}
+                          value={field.value ?? ""}
                           onValueChange={(val) => field.onChange(val)}
                         >
                           <FormControl>
