@@ -58,7 +58,8 @@ function AccessPage() {
 
   const toggleMode = (targetMode: "login" | "registro") => {
     navigate({
-      search: (prev) => ({ ...prev, mode: targetMode }),
+      to: "/acceso",
+      search: (prev) => ({ redirect: prev.redirect ?? "/", mode: targetMode }),
     });
   };
 
