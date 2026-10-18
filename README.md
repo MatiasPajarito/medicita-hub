@@ -10,7 +10,7 @@ Sistema web integral para la reserva de horas médicas presenciales y por teleme
 ## 👥 Equipo de Desarrollo
 - **Alberto Oñate**
 - **Cristobal Barahona**
-- **Ignacio Serraro** 
+- **Ignacio Serrano** 
 - **Matías Farías**
 - **Matías Pajarito** 
 
@@ -35,5 +35,5 @@ Sistema web integral para la reserva de horas médicas presenciales y por teleme
 
 1. Clonar el repositorio:
    ```bash
-   git clone [https://github.com/MatiasPajarito/medicita-hub.git](https://github.com/MatiasPajarito/medicita-hub.git)
+   git clone https://github.com/MatiasPajarito/medicita-hub
    cd medicita-hub
