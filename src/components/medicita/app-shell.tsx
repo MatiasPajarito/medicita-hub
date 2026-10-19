@@ -114,7 +114,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             {/* Solo visible para cuentas con rol médico o admin */}
             {isDoctor && (
               <Button asChild variant="ghost">
-                <Link to="/portal-profesional">Mi disponibilidad</Link>
+                <Link to="/doctor/disponibilidad">Mi disponibilidad</Link>
               </Button>
             )}
 

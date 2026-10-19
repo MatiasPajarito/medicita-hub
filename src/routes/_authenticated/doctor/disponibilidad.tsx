@@ -1,5 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
+import { createFileRoute, redirect } from "@tanstack/react-router";import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { CalendarClock, ChevronLeft, ChevronRight, Coffee, Save } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -13,9 +12,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { getMySchedule, saveMySchedule } from "@/lib/clinical.functions";
+import { supabase } from "@/lib/supabase";
 import { dayRuleSchema, defaultDay, generateSlots, mondayIndex, weekDays, type DayRule } from "@/lib/schedule";
 
 export const Route = createFileRoute("/_authenticated/doctor/disponibilidad")({
+  beforeLoad: async ({ context }) => {
+    const { data } = await supabase.from("user_roles").select("role").eq("user_id", context.user.id).in("role", ["doctor", "admin"]);
+    if (!data?.length) throw redirect({ to: "/" });
+  },
+
   head: () => ({ meta: [
     { title: "Mi disponibilidad horaria — MediCita" },
     { name: "description", content: "Configura tus días, horarios de atención, pausas y bloques de consulta en MediCita." },
@@ -90,7 +95,7 @@ function AvailabilityPage() {
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>{durations.map((m) => <SelectItem key={m} value={String(m)}>{m} min</SelectItem>)}</SelectContent>
                   </Select></div>
-                {d.is_available && errors[i] && <p className="text-sm text-destructive lg:col-span-4">{errors[i]}</p>}
+                {errors[i] && <p className="text-sm text-destructive lg:col-span-4">{errors[i]}</p>}
               </div>
             ))}
           </CardContent>
