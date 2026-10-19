@@ -1,7 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   CalendarDays,
-  HeartPulse,
   Home,
   LogOut,
   Menu,
@@ -17,6 +16,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
+import { MediCitaLogo } from "@/components/common/MediCitaLogo";
 
 const navItems = [
   { to: "/" as const, label: "Inicio", mobileLabel: "Inicio", icon: Home },
@@ -25,15 +25,10 @@ const navItems = [
   { to: "/mi-agenda" as const, label: "Mi agenda", mobileLabel: "Mis citas", icon: CalendarDays },
 ];
 
-export function MediCitaLogo() {
+function HeaderLogo() {
   return (
-    <Link to="/" className="flex items-center gap-2.5" aria-label="MediCita, inicio">
-      <span className="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-clinical">
-        <HeartPulse className="size-5" strokeWidth={2.4} />
-      </span>
-      <span className="text-xl font-bold text-foreground">
-        Medi<span className="text-primary">Cita</span>
-      </span>
+    <Link to="/" aria-label="MediCita, inicio">
+      <MediCitaLogo />
     </Link>
   );
 }
@@ -92,7 +87,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="min-h-screen bg-background text-foreground">
       <header className="sticky top-0 z-40 border-b border-border/80 bg-background/95 backdrop-blur">
         <div className="mx-auto flex h-17 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-          <MediCitaLogo />
+          <HeaderLogo />
           <nav className="hidden items-center gap-1 lg:flex" aria-label="Navegación principal">
             {navItems.map(({ to, label }) => (
               <Link
