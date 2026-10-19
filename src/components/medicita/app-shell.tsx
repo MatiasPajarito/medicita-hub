@@ -25,15 +25,10 @@ const navItems = [
   { to: "/mi-agenda" as const, label: "Mi agenda", mobileLabel: "Mis citas", icon: CalendarDays },
 ];
 
-export function MediCitaLogo() {
+function HeaderLogo() {
   return (
-    <Link to="/" className="flex items-center gap-2.5" aria-label="MediCita, inicio">
-      <span className="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-clinical">
-        <HeartPulse className="size-5" strokeWidth={2.4} />
-      </span>
-      <span className="text-xl font-bold text-foreground">
-        Medi<span className="text-primary">Cita</span>
-      </span>
+    <Link to="/" aria-label="MediCita, inicio">
+      <MediCitaLogo />
     </Link>
   );
 }
