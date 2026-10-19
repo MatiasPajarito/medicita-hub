@@ -7,7 +7,7 @@ export function MediCitaIcon({ className }: { className?: string }) {
   const id = useId().replace(/:/g, "");
   const g = `mc-grad-${id}`;
   return (
-    <svg viewBox="0 0 64 64" className={cn("size-9", className)} role="img" aria-label="MediCita" fill="none">
+    <svg viewBox="0 0 64 64" className={cn("size-9", className)} role="img" aria-label="MediCita" fill="none" width="36" height="36" style={{ maxHeight: 40, maxWidth: 40 }}>
       <defs>
         <linearGradient id={g} x1="8" y1="6" x2="56" y2="60" gradientUnits="userSpaceOnUse">
           <stop offset="0" stopColor="#2dd4bf" />
