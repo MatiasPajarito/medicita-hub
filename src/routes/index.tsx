@@ -103,9 +103,8 @@ function HomePage() {
       </section>
 
       <section className="border-y border-border bg-surface-subtle">
-        <div className="mx-auto grid max-w-7xl gap-6 px-4 py-12 sm:px-6 lg:grid-cols-[.9fr_1.1fr] lg:px-8">
-          <div className="flex flex-col justify-center"><p className="text-sm font-bold text-primary">Tu próxima cita</p><h2 className="mt-2 text-3xl font-bold">Todo listo para tu atención</h2><p className="mt-3 max-w-md leading-7 text-muted-foreground">Recordatorios, indicaciones y acceso a la videollamada reunidos en un solo lugar.</p><Button asChild variant="outline" className="mt-6 self-start"><Link to="/mi-agenda">Ver mi agenda<ArrowRight /></Link></Button></div>
-          <Card className="border-border shadow-none"><CardContent className="p-0"><div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:p-6"><div className="flex w-20 shrink-0 flex-col items-center rounded-lg border border-border bg-background py-3"><span className="text-xs font-bold uppercase text-primary">Oct</span><strong className="text-3xl">02</strong><span className="text-xs text-muted-foreground">Viernes</span></div><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h3 className="text-lg font-bold">Dra. Camila Rojas</h3><Badge className="border-transparent bg-success-soft text-success hover:bg-success-soft"><CheckCircle2 />Confirmada</Badge></div><p className="mt-1 text-sm text-muted-foreground">Medicina general</p><div className="mt-4 flex flex-wrap gap-4 text-sm"><span className="flex items-center gap-2"><Clock3 className="size-4 text-primary" />10:30 — 11:00</span><span className="flex items-center gap-2"><Video className="size-4 text-primary" />Videollamada</span></div></div><Button asChild><Link to="/mi-agenda">Ver detalles</Link></Button></div></CardContent></Card>
+        <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+          <NextAppointmentSection />
         </div>
       </section>
 
