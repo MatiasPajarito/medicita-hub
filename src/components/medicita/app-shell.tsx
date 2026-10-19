@@ -87,7 +87,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="min-h-screen bg-background text-foreground">
       <header className="sticky top-0 z-40 border-b border-border/80 bg-background/95 backdrop-blur">
         <div className="mx-auto flex h-17 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-          <MediCitaLogo />
+          <HeaderLogo />
           <nav className="hidden items-center gap-1 lg:flex" aria-label="Navegación principal">
             {navItems.map(({ to, label }) => (
               <Link
