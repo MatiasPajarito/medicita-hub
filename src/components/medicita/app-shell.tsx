@@ -1,7 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   CalendarDays,
-  HeartPulse,
   Home,
   LogOut,
   Menu,
@@ -17,6 +16,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
+import { MediCitaLogo } from "@/components/common/MediCitaLogo";
 
 const navItems = [
   { to: "/" as const, label: "Inicio", mobileLabel: "Inicio", icon: Home },
