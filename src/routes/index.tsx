@@ -1,4 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
+import { MediCitaIcon } from "@/components/common/MediCitaLogo";
 import {
   ArrowRight,
   CalendarCheck,
@@ -110,5 +113,49 @@ function HomePage() {
 
       <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8"><div className="grid gap-4 md:grid-cols-3"><div className="flex gap-4"><CalendarDays className="mt-1 size-6 shrink-0 text-primary" /><div><h3 className="font-bold">Agenda en minutos</h3><p className="mt-1 text-sm leading-6 text-muted-foreground">Compara horarios y elige la hora que mejor te acomode.</p></div></div><div className="flex gap-4"><Video className="mt-1 size-6 shrink-0 text-primary" /><div><h3 className="font-bold">Atención estés donde estés</h3><p className="mt-1 text-sm leading-6 text-muted-foreground">Conéctate con seguridad desde tu teléfono o computador.</p></div></div><div className="flex gap-4"><MapPin className="mt-1 size-6 shrink-0 text-primary" /><div><h3 className="font-bold">Centros cercanos</h3><p className="mt-1 text-sm leading-6 text-muted-foreground">Encuentra atención presencial en tu ciudad.</p></div></div></div></section>
     </>
+  );
+}
+
+function NextAppointmentSection() {
+  const [signedIn, setSignedIn] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    void supabase.auth.getSession().then(({ data }) => setSignedIn(Boolean(data.session)));
+    const { data } = supabase.auth.onAuthStateChange((_e, session) => setSignedIn(Boolean(session)));
+    return () => data.subscription.unsubscribe();
+  }, []);
+
+  if (signedIn === null) return <div className="h-40 animate-pulse rounded-lg bg-muted/50" />;
+
+  if (!signedIn) {
+    return (
+      <Card className="border-primary/20 bg-card shadow-clinical">
+        <CardContent className="flex flex-col gap-6 p-6 sm:p-8 md:flex-row md:items-center md:justify-between">
+          <div className="flex gap-4">
+            <span className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-clinical-soft text-primary"><MediCitaIcon className="size-8" /></span>
+            <div>
+              <h2 className="text-2xl font-bold">¿Primera vez en MediCita?</h2>
+              <p className="mt-2 max-w-xl leading-7 text-muted-foreground">Crea tu cuenta o inicia sesión para agendar tus horas médicas, revisar tu historial y gestionar tus atenciones clínicas en un solo lugar.</p>
+            </div>
+          </div>
+          <div className="flex shrink-0 flex-wrap gap-3">
+            <Button asChild size="lg"><Link to="/acceso" search={{ redirect: "/", mode: "registro" }}>Crear cuenta</Link></Button>
+            <Button asChild size="lg" variant="outline"><Link to="/acceso" search={{ redirect: "/", mode: "login" }}>Iniciar sesión</Link></Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Aún no existe un registro de citas en la base de datos: sin citas reservadas.
+  return (
+    <Card className="border-dashed border-border bg-card shadow-none">
+      <CardContent className="flex flex-col items-center p-8 text-center sm:p-10">
+        <span className="flex size-14 items-center justify-center rounded-full bg-clinical-soft text-primary"><CalendarDays className="size-7" /></span>
+        <h2 className="mt-4 text-2xl font-bold">No tienes citas programadas</h2>
+        <p className="mt-2 max-w-md leading-7 text-muted-foreground">Encuentra al profesional que necesitas y reserva tu próxima atención médica fácilmente.</p>
+        <Button asChild size="lg" className="mt-6"><Link to="/buscar-citas"><Search />Buscar y agendar cita</Link></Button>
+      </CardContent>
+    </Card>
   );
 }
