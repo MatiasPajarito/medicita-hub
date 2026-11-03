@@ -60,7 +60,7 @@ function ProfilePage() {
   if (profileKind.isError) return <p role="alert" className="mx-auto max-w-5xl px-4 py-8 text-destructive">{profileKind.error.message}</p>;
   if (profileKind.data.professional) {
     const doctor = profileKind.data.doctor;
-    if (!doctor) return <><PageHeading eyebrow="Portal profesional" title="Perfil Profesional" /><p className="mx-auto max-w-3xl px-4 py-8 text-muted-foreground">Tu cuenta profesional aún no está vinculada a una ficha médica. Solicita la vinculación a un administrador.</p></>;
+    if (!doctor) return <><PageHeading eyebrow="Portal profesional" title="Perfil Profesional" description="Datos de tu práctica clínica." /><p className="mx-auto max-w-3xl px-4 py-8 text-muted-foreground">Tu cuenta profesional aún no está vinculada a una ficha médica. Solicita la vinculación a un administrador.</p></>;
     const data = doctor as unknown as Partial<ProfessionalInput> & { id: string };
     return <ProfessionalProfile doctor={{ id: data.id, full_name: data.full_name ?? "", rut_dni: data.rut_dni ?? "", specialty: data.specialty ?? "", medical_registration: data.medical_registration ?? "", modalities: data.modalities ?? [], bio: data.bio ?? "" }} />;
   }

@@ -12,7 +12,7 @@ import { BookingDialog } from "@/components/medicita/booking-dialog";
 import type { PublicDoctor } from "@/lib/booking";
 import { listDoctors } from "@/lib/clinical.functions";
 
-export const Route = createFileRoute("/buscar-citas")({ validateSearch: (s: Record<string, unknown>) => ({ doctor: typeof s["doctor"] === "string" ? s["doctor"] : undefined, specialty: typeof s["specialty"] === "string" ? s["specialty"] : undefined, date: typeof s["date"] === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s["date"]) ? s["date"] : undefined, modality: typeof s["modality"] === "string" ? s["modality"] : undefined }), head: () => ({ meta: [
+export const Route = createFileRoute("/buscar-citas")({ validateSearch: (s: Record<string, unknown>)  : { doctor?: string | undefined; specialty?: string | undefined; date?: string | undefined; modality?: string | undefined } => ({ doctor: typeof s["doctor"] === "string" ? s["doctor"] : undefined, specialty: typeof s["specialty"] === "string" ? s["specialty"] : undefined, date: typeof s["date"] === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s["date"]) ? s["date"] : undefined, modality: typeof s["modality"] === "string" ? s["modality"] : undefined }), head: () => ({ meta: [
   { title: "Buscar citas — MediCita" }, { name: "description", content: "Busca profesionales de salud por especialidad, modalidad y fecha." },
   { property: "og:title", content: "Buscar citas — MediCita" }, { property: "og:description", content: "Encuentra una hora médica disponible." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" },
 ] }), component: SearchAppointments });

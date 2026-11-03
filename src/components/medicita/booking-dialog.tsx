@@ -13,10 +13,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { availableDates, clinicNow, type BusySlot, type PublicDoctor } from "@/lib/booking";
 import { supabase } from "@/lib/supabase";
 
-export function BookingDialog({ doctor, initialDate, initialModality = "todas", onClose }: { doctor: PublicDoctor | null; initialDate?: string; initialModality?: string; onClose: () => void }) {
+export function BookingDialog({ doctor, initialDate, initialModality = "todas", onClose }: { doctor: PublicDoctor | null; initialDate?: string | undefined; initialModality?: string | undefined; onClose: () => void }) {
   return <Dialog open={!!doctor} onOpenChange={(open) => { if (!open) onClose(); }}><DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">{doctor && <BookingPanel key={doctor.id} doctor={doctor} initialDate={initialDate} initialModality={initialModality} onClose={onClose} />}</DialogContent></Dialog>;
 }
-function BookingPanel({ doctor, initialDate, initialModality, onClose }: { doctor: PublicDoctor; initialDate?: string; initialModality: string; onClose: () => void }) {
+function BookingPanel({ doctor, initialDate, initialModality, onClose }: { doctor: PublicDoctor; initialDate?: string | undefined; initialModality: string; onClose: () => void }) {
   const today = format(clinicNow(), "yyyy-MM-dd");
   const [date, setDate] = useState(initialDate && initialDate >= today ? initialDate : today);
   const [chosenDate, setChosenDate] = useState("");
