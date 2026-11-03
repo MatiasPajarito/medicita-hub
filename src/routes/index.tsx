@@ -1,10 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { QuickBooking } from "@/components/medicita/quick-booking";
 import { MediCitaIcon } from "@/components/common/MediCitaLogo";
 import {
-  ArrowRight,
-  CalendarCheck,
   CalendarDays,
   CheckCircle2,
   ChevronRight,
@@ -21,8 +20,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export const Route = createFileRoute("/")({
   head: () => ({ meta: [
@@ -65,29 +62,7 @@ function HomePage() {
             </div>
           </div>
 
-          <Card className="border-border/80 shadow-clinical">
-            <CardContent className="p-5 sm:p-6">
-              <div className="mb-5 flex items-center justify-between">
-                <div><p className="text-sm font-semibold text-primary">Agenda rápida</p><h2 className="mt-1 text-xl font-bold">¿Qué atención necesitas?</h2></div>
-                <span className="flex size-11 items-center justify-center rounded-lg bg-clinical-soft text-primary"><CalendarCheck /></span>
-              </div>
-              <div className="grid gap-4">
-                <label className="grid gap-2 text-sm font-semibold">Especialidad
-                  <Select><SelectTrigger className="h-12 bg-background"><SelectValue placeholder="Selecciona una especialidad" /></SelectTrigger><SelectContent><SelectItem value="general">Medicina general</SelectItem><SelectItem value="cardio">Cardiología</SelectItem><SelectItem value="pediatria">Pediatría</SelectItem><SelectItem value="mental">Salud mental</SelectItem></SelectContent></Select>
-                </label>
-                <label className="grid gap-2 text-sm font-semibold">Profesional o centro
-                  <Input className="h-12 bg-background" placeholder="Nombre del profesional o clínica" />
-                </label>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <label className="grid gap-2 text-sm font-semibold">Fecha<Input className="h-12 bg-background" type="date" /></label>
-                  <label className="grid gap-2 text-sm font-semibold">Modalidad
-                    <Select defaultValue="todas"><SelectTrigger className="h-12 bg-background"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="todas">Todas</SelectItem><SelectItem value="presencial">Presencial</SelectItem><SelectItem value="online">Videollamada</SelectItem></SelectContent></Select>
-                  </label>
-                </div>
-                <Button asChild size="lg" className="mt-1 h-12"><Link to="/buscar-citas"><Search />Ver horas disponibles</Link></Button>
-              </div>
-            </CardContent>
-          </Card>
+          <QuickBooking />
         </div>
       </section>
 
