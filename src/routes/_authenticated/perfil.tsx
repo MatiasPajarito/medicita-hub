@@ -14,6 +14,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { bloodTypes, normalizeRut, patientSchema, type PatientInput } from "@/lib/clinical-schemas";
 import { supabase } from "@/lib/supabase";
+import { ProfessionalProfile } from "@/components/medicita/professional-profile";
+import type { ProfessionalInput } from "@/lib/booking";
 
 export const Route = createFileRoute("/_authenticated/perfil")({
   head: () => ({
@@ -26,7 +28,7 @@ export const Route = createFileRoute("/_authenticated/perfil")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  component: PatientProfile,
+  component: ProfilePage,
 });
 
 const emptyValues: PatientInput = {
@@ -42,6 +44,28 @@ const emptyValues: PatientInput = {
   chronic_conditions: "",
   medical_history_notes: "",
 };
+
+function ProfilePage() {
+  const profileKind = useQuery({ queryKey: ["profile-kind"], queryFn: async () => {
+    const { data: auth, error: authError } = await supabase.auth.getUser();
+    if (authError || !auth.user) throw new Error("Tu sesión expiró.");
+    const [roles, doctor] = await Promise.all([
+      supabase.from("user_roles").select("role").eq("user_id", auth.user.id),
+      supabase.from("doctors").select("*").eq("user_id", auth.user.id).maybeSingle(),
+    ]);
+    if (roles.error || doctor.error) throw new Error("No pudimos identificar tu perfil. Inténtalo nuevamente más tarde.");
+    return { professional: !!doctor.data || roles.data?.some((r) => r.role === "doctor"), doctor: doctor.data };
+  } });
+  if (profileKind.isPending) return <p className="mx-auto max-w-5xl px-4 py-8 text-muted-foreground">Cargando tu perfil…</p>;
+  if (profileKind.isError) return <p role="alert" className="mx-auto max-w-5xl px-4 py-8 text-destructive">{profileKind.error.message}</p>;
+  if (profileKind.data.professional) {
+    const doctor = profileKind.data.doctor;
+    if (!doctor) return <><PageHeading eyebrow="Portal profesional" title="Perfil Profesional" description="Datos de tu práctica clínica." /><p className="mx-auto max-w-3xl px-4 py-8 text-muted-foreground">Tu cuenta profesional aún no está vinculada a una ficha médica. Solicita la vinculación a un administrador.</p></>;
+    const data = doctor as unknown as Partial<ProfessionalInput> & { id: string };
+    return <ProfessionalProfile doctor={{ id: data.id, full_name: data.full_name ?? "", rut_dni: data.rut_dni ?? "", specialty: data.specialty ?? "", medical_registration: data.medical_registration ?? "", modalities: data.modalities ?? [], bio: data.bio ?? "" }} />;
+  }
+  return <PatientProfile />;
+}
 
 function PatientProfile() {
   const queryClient = useQueryClient();

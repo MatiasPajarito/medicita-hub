@@ -8,9 +8,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { BookingDialog } from "@/components/medicita/booking-dialog";
+import type { PublicDoctor } from "@/lib/booking";
 import { listDoctors } from "@/lib/clinical.functions";
 
-export const Route = createFileRoute("/buscar-citas")({ head: () => ({ meta: [
+export const Route = createFileRoute("/buscar-citas")({ validateSearch: (s: Record<string, unknown>)  : { doctor?: string | undefined; specialty?: string | undefined; date?: string | undefined; modality?: string | undefined } => ({ doctor: typeof s["doctor"] === "string" ? s["doctor"] : undefined, specialty: typeof s["specialty"] === "string" ? s["specialty"] : undefined, date: typeof s["date"] === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s["date"]) ? s["date"] : undefined, modality: typeof s["modality"] === "string" ? s["modality"] : undefined }), head: () => ({ meta: [
   { title: "Buscar citas — MediCita" }, { name: "description", content: "Busca profesionales de salud por especialidad, modalidad y fecha." },
   { property: "og:title", content: "Buscar citas — MediCita" }, { property: "og:description", content: "Encuentra una hora médica disponible." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" },
 ] }), component: SearchAppointments });
@@ -20,7 +22,11 @@ const initials = (name: string) => name.replace(/^(Dra?\.)\s*/i, "").split(" ").
 function SearchAppointments() {
   const fetchDoctors = useServerFn(listDoctors);
   const doctors = useQuery({ queryKey: ["doctors"], queryFn: () => fetchDoctors() });
-  const [specialty, setSpecialty] = useState("all");
+  const search = Route.useSearch();
+  const [specialty, setSpecialty] = useState(search.specialty ?? "all");
+  const [selected, setSelected] = useState<PublicDoctor | null>(null);
+  const [dismissed, setDismissed] = useState(false);
+  const bookingDoctor = selected ?? (!dismissed ? doctors.data?.find((d) => d.id === search.doctor) ?? null : null);
   const [text, setText] = useState("");
   const specialties = useMemo(() => Array.from(new Set((doctors.data ?? []).map((d) => d.specialty))).sort(), [doctors.data]);
   const filtered = (doctors.data ?? []).filter((d) => (specialty === "all" || d.specialty === specialty) && d.full_name.toLowerCase().includes(text.trim().toLowerCase()));
@@ -37,7 +43,8 @@ function SearchAppointments() {
       {doctors.isError && <p className="text-destructive">No pudimos cargar los profesionales.</p>}
       {doctors.data && <p className="mb-5 font-semibold">{filtered.length} {filtered.length === 1 ? "profesional disponible" : "profesionales disponibles"}</p>}
       {doctors.data && filtered.length === 0 && <div className="py-16 text-center"><Stethoscope className="mx-auto size-10 text-muted-foreground" /><p className="mt-3 font-semibold">No hay profesionales que coincidan con tu búsqueda.</p></div>}
-      <div className="grid gap-4">{filtered.map((doctor) => <Card key={doctor.id} className="shadow-none"><CardContent className="grid gap-5 p-5 lg:grid-cols-[1fr_auto] lg:items-center"><div className="flex gap-4">{doctor.photo_url ? <img src={doctor.photo_url} alt={doctor.full_name} className="size-14 shrink-0 rounded-full object-cover" /> : <span className="flex size-14 shrink-0 items-center justify-center rounded-full border border-primary/20 bg-clinical-soft font-bold text-primary">{initials(doctor.full_name)}</span>}<div><div className="flex flex-wrap items-center gap-2"><h2 className="font-bold">{doctor.full_name}</h2><CheckCircle2 className="size-4 text-success" /></div><p className="mt-1 text-sm font-medium text-primary">{doctor.specialty}</p><p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{doctor.bio}</p><p className="mt-2 text-sm"><strong>${doctor.consultation_fee.toLocaleString("es-CL")}</strong> por consulta</p></div></div><Button><CalendarPlus />Agendar cita</Button></CardContent></Card>)}</div>
+      <div className="grid gap-4">{filtered.map((doctor) => <Card key={doctor.id} className="shadow-none"><CardContent className="grid gap-5 p-5 lg:grid-cols-[1fr_auto] lg:items-center"><div className="flex gap-4">{doctor.photo_url ? <img src={doctor.photo_url} alt={doctor.full_name} className="size-14 shrink-0 rounded-full object-cover" /> : <span className="flex size-14 shrink-0 items-center justify-center rounded-full border border-primary/20 bg-clinical-soft font-bold text-primary">{initials(doctor.full_name)}</span>}<div><div className="flex flex-wrap items-center gap-2"><h2 className="font-bold">{doctor.full_name}</h2><CheckCircle2 className="size-4 text-success" /></div><p className="mt-1 text-sm font-medium text-primary">{doctor.specialty}</p><p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{doctor.bio}</p><p className="mt-2 text-sm"><strong>${doctor.consultation_fee.toLocaleString("es-CL")}</strong> por consulta</p></div></div><Button onClick={() => setSelected(doctor)}><CalendarPlus />Agendar cita</Button></CardContent></Card>)}</div>
     </div>
+    <BookingDialog doctor={bookingDoctor} initialDate={search.date} initialModality={search.modality} onClose={() => { setSelected(null); setDismissed(true); }} />
   </>;
 }

@@ -10,7 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { lovable } from "@/integrations/lovable";
+import { MediCitaLogo } from "@/components/common/MediCitaLogo";
 import { isValidChileanRut, normalizeRut } from "@/lib/clinical-schemas";
 import { supabase } from "@/lib/supabase";
 
@@ -120,12 +120,6 @@ function AccessPage() {
     await navigate({ to: redirect as "/" });
   }
 
-  async function signInGoogle() {
-    const result = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
-    if (result.error) toast.error(result.error.message);
-    else if (!result.redirected) await navigate({ to: "/" });
-  }
-
   return (
     <div className="mx-auto grid min-h-[calc(100vh-4.25rem)] max-w-7xl items-center gap-10 px-4 py-12 sm:px-6 lg:grid-cols-2 lg:px-8">
       <div className="hidden lg:block">
@@ -143,6 +137,7 @@ function AccessPage() {
       </div>
       <Card className="mx-auto w-full max-w-md shadow-clinical">
         <CardContent className="p-6 sm:p-8">
+          <MediCitaLogo className="mb-6" />
           <h2 className="text-2xl font-bold">{isRegistering ? "Crea tu cuenta" : "Bienvenido a MediCita"}</h2>
           <p className="mt-2 text-sm text-muted-foreground">
             {isRegistering
@@ -262,14 +257,6 @@ function AccessPage() {
             </form>
           )}
 
-          <div className="my-6 flex items-center gap-3">
-            <span className="h-px flex-1 bg-border" />
-            <span className="text-xs text-muted-foreground">o</span>
-            <span className="h-px flex-1 bg-border" />
-          </div>
-          <Button type="button" variant="outline" className="h-11 w-full" onClick={signInGoogle}>
-            Continuar con Google
-          </Button>
           <p className="mt-6 text-center text-sm text-muted-foreground">
             {isRegistering ? "¿Ya tienes cuenta?" : "¿Aún no tienes cuenta?"}{" "}
             <Button
