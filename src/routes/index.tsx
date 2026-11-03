@@ -58,7 +58,6 @@ function HomePage() {
             </p>
             <div className="mt-7 flex flex-wrap gap-3">
               <Button asChild size="lg"><Link to="/buscar-citas"><Search />Buscar una cita</Link></Button>
-              <Button asChild size="lg" variant="outline"><Link to="/portal-profesional">Soy profesional de salud<ArrowRight /></Link></Button>
             </div>
             <div className="mt-7 flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
               <span className="flex items-center gap-2"><ShieldCheck className="size-4 text-success" />Datos protegidos</span>
