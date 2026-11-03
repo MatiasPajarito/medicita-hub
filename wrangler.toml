@@ -1,6 +1,6 @@
 [vars]
-SUPABASE_URL = "https://hnrforuevdezngybkcos.supabase.co"
-SUPABASE_PUBLISHABLE_KEY = "sb_publishable_zQx8z7Pw-zpsdnthNhELzA_ASmhegaW"
-VITE_SUPABASE_URL = "https://hnrforuevdezngybkcos.supabase.co"
-VITE_SUPABASE_ANON_KEY = "sb_publishable_zQx8z7Pw-zpsdnthNhELzA_ASmhegaW"
-VITE_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_zQx8z7Pw-zpsdnthNhELzA_ASmhegaW"
+VITE_SUPABASE_URL=https://hnrforuevdezngybkcos.supabase.co
+VITE_SUPABASE_ANON_KEY=sb_publishable_zQx8z7Pw-zpsdnthNhELzA_ASmhegaW
+VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_zQx8z7Pw-zpsdnthNhELzA_ASmhegaW
+SUPABASE_URL=https://hnrforuevdezngybkcos.supabase.co
+SUPABASE_PUBLISHABLE_KEY=sb_publishable_zQx8z7Pw-zpsdnthNhELzA_ASmhegaW
