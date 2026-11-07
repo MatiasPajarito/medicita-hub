@@ -22,14 +22,23 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
 export const Route = createFileRoute("/")({
-  head: () => ({ meta: [
-    { title: "MediCita — Tu salud, a tu tiempo" },
-    { name: "description", content: "Encuentra especialistas, agenda consultas y accede a telemedicina desde un solo lugar." },
-    { property: "og:title", content: "MediCita — Tu salud, a tu tiempo" },
-    { property: "og:description", content: "Encuentra especialistas y agenda atención presencial o por videollamada." },
-    { property: "og:type", content: "website" },
-    { name: "twitter:card", content: "summary_large_image" },
-  ] }),
+  head: () => ({
+    meta: [
+      { title: "MediCita — Tu salud, a tu tiempo" },
+      {
+        name: "description",
+        content:
+          "Encuentra especialistas, agenda consultas y accede a telemedicina desde un solo lugar.",
+      },
+      { property: "og:title", content: "MediCita — Tu salud, a tu tiempo" },
+      {
+        property: "og:description",
+        content: "Encuentra especialistas y agenda atención presencial o por videollamada.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
   component: HomePage,
 });
 
@@ -46,19 +55,33 @@ function HomePage() {
       <section className="border-b border-border bg-surface-subtle">
         <div className="mx-auto grid max-w-7xl items-center gap-10 px-4 py-12 sm:px-6 lg:grid-cols-[1.08fr_.92fr] lg:px-8 lg:py-16">
           <div>
-            <Badge className="mb-5 border-primary/20 bg-clinical-soft text-primary hover:bg-clinical-soft">Atención simple y segura</Badge>
+            <Badge className="mb-5 border-primary/20 bg-clinical-soft text-primary hover:bg-clinical-soft">
+              Atención simple y segura
+            </Badge>
             <h1 className="max-w-2xl font-display text-4xl font-extrabold leading-[1.08] text-foreground sm:text-5xl lg:text-6xl">
               Tu salud, a tu tiempo.
             </h1>
             <p className="mt-5 max-w-xl text-lg leading-8 text-muted-foreground">
-              Encuentra al especialista que necesitas y agenda atención presencial o por videollamada, sin llamadas ni esperas.
+              Encuentra al especialista que necesitas y agenda atención presencial o por
+              videollamada, sin llamadas ni esperas.
             </p>
             <div className="mt-7 flex flex-wrap gap-3">
-              <Button asChild size="lg"><Link to="/buscar-citas"><Search />Buscar una cita</Link></Button>
+              <Button asChild size="lg">
+                <Link to="/buscar-citas">
+                  <Search />
+                  Buscar una cita
+                </Link>
+              </Button>
             </div>
             <div className="mt-7 flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
-              <span className="flex items-center gap-2"><ShieldCheck className="size-4 text-success" />Datos protegidos</span>
-              <span className="flex items-center gap-2"><CheckCircle2 className="size-4 text-success" />Profesionales verificados</span>
+              <span className="flex items-center gap-2">
+                <ShieldCheck className="size-4 text-success" />
+                Datos protegidos
+              </span>
+              <span className="flex items-center gap-2">
+                <CheckCircle2 className="size-4 text-success" />
+                Profesionales verificados
+              </span>
             </div>
           </div>
 
@@ -67,13 +90,35 @@ function HomePage() {
       </section>
 
       <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-        <div className="mb-6 flex items-end justify-between gap-4"><div><p className="text-sm font-bold text-primary">Atención especializada</p><h2 className="mt-1 text-2xl font-bold sm:text-3xl">Encuentra la atención adecuada</h2></div><Button asChild variant="ghost" className="hidden sm:inline-flex"><Link to="/buscar-citas">Ver todas<ChevronRight /></Link></Button></div>
+        <div className="mb-6 flex items-end justify-between gap-4">
+          <div>
+            <p className="text-sm font-bold text-primary">Atención especializada</p>
+            <h2 className="mt-1 text-2xl font-bold sm:text-3xl">Encuentra la atención adecuada</h2>
+          </div>
+          <Button asChild variant="ghost" className="hidden sm:inline-flex">
+            <Link to="/buscar-citas">
+              Ver todas
+              <ChevronRight />
+            </Link>
+          </Button>
+        </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {specialties.map(({ name, note, icon: Icon }) => (
-            <Link key={name} to="/buscar-citas" className="group rounded-lg border border-border bg-card p-5 transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-clinical">
-              <span className="flex size-11 items-center justify-center rounded-lg bg-clinical-soft text-primary"><Icon /></span>
-              <h3 className="mt-5 font-bold">{name}</h3><p className="mt-1 text-sm text-muted-foreground">{note}</p>
-              <span className="mt-5 flex items-center gap-1 text-sm font-semibold text-primary">Ver profesionales<ChevronRight className="size-4 transition-transform group-hover:translate-x-1" /></span>
+            <Link
+              key={name}
+              to="/buscar-citas"
+              search={name === "Telemedicina" ? { modality: "telemedicina" } : { specialty: name }}
+              className="group rounded-lg border border-border bg-card p-5 transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-clinical"
+            >
+              <span className="flex size-11 items-center justify-center rounded-lg bg-clinical-soft text-primary">
+                <Icon />
+              </span>
+              <h3 className="mt-5 font-bold">{name}</h3>
+              <p className="mt-1 text-sm text-muted-foreground">{note}</p>
+              <span className="mt-5 flex items-center gap-1 text-sm font-semibold text-primary">
+                Ver profesionales
+                <ChevronRight className="size-4 transition-transform group-hover:translate-x-1" />
+              </span>
             </Link>
           ))}
         </div>
@@ -85,7 +130,37 @@ function HomePage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8"><div className="grid gap-4 md:grid-cols-3"><div className="flex gap-4"><CalendarDays className="mt-1 size-6 shrink-0 text-primary" /><div><h3 className="font-bold">Agenda en minutos</h3><p className="mt-1 text-sm leading-6 text-muted-foreground">Compara horarios y elige la hora que mejor te acomode.</p></div></div><div className="flex gap-4"><Video className="mt-1 size-6 shrink-0 text-primary" /><div><h3 className="font-bold">Atención estés donde estés</h3><p className="mt-1 text-sm leading-6 text-muted-foreground">Conéctate con seguridad desde tu teléfono o computador.</p></div></div><div className="flex gap-4"><MapPin className="mt-1 size-6 shrink-0 text-primary" /><div><h3 className="font-bold">Centros cercanos</h3><p className="mt-1 text-sm leading-6 text-muted-foreground">Encuentra atención presencial en tu ciudad.</p></div></div></div></section>
+      <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+        <div className="grid gap-4 md:grid-cols-3">
+          <div className="flex gap-4">
+            <CalendarDays className="mt-1 size-6 shrink-0 text-primary" />
+            <div>
+              <h3 className="font-bold">Agenda en minutos</h3>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                Compara horarios y elige la hora que mejor te acomode.
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-4">
+            <Video className="mt-1 size-6 shrink-0 text-primary" />
+            <div>
+              <h3 className="font-bold">Atención estés donde estés</h3>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                Conéctate con seguridad desde tu teléfono o computador.
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-4">
+            <MapPin className="mt-1 size-6 shrink-0 text-primary" />
+            <div>
+              <h3 className="font-bold">Centros cercanos</h3>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                Encuentra atención presencial en tu ciudad.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
     </>
   );
 }
@@ -95,7 +170,9 @@ function NextAppointmentSection() {
 
   useEffect(() => {
     void supabase.auth.getSession().then(({ data }) => setSignedIn(Boolean(data.session)));
-    const { data } = supabase.auth.onAuthStateChange((_e, session) => setSignedIn(Boolean(session)));
+    const { data } = supabase.auth.onAuthStateChange((_e, session) =>
+      setSignedIn(Boolean(session)),
+    );
     return () => data.subscription.unsubscribe();
   }, []);
 
@@ -106,15 +183,28 @@ function NextAppointmentSection() {
       <Card className="border-primary/20 bg-card shadow-clinical">
         <CardContent className="flex flex-col gap-6 p-6 sm:p-8 md:flex-row md:items-center md:justify-between">
           <div className="flex gap-4">
-            <span className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-clinical-soft text-primary"><MediCitaIcon className="size-8" /></span>
+            <span className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-clinical-soft text-primary">
+              <MediCitaIcon className="size-8" />
+            </span>
             <div>
               <h2 className="text-2xl font-bold">¿Primera vez en MediCita?</h2>
-              <p className="mt-2 max-w-xl leading-7 text-muted-foreground">Crea tu cuenta o inicia sesión para agendar tus horas médicas, revisar tu historial y gestionar tus atenciones clínicas en un solo lugar.</p>
+              <p className="mt-2 max-w-xl leading-7 text-muted-foreground">
+                Crea tu cuenta o inicia sesión para agendar tus horas médicas, revisar tu historial
+                y gestionar tus atenciones clínicas en un solo lugar.
+              </p>
             </div>
           </div>
           <div className="flex shrink-0 flex-wrap gap-3">
-            <Button asChild size="lg"><Link to="/acceso" search={{ redirect: "/", mode: "registro" }}>Crear cuenta</Link></Button>
-            <Button asChild size="lg" variant="outline"><Link to="/acceso" search={{ redirect: "/", mode: "login" }}>Iniciar sesión</Link></Button>
+            <Button asChild size="lg">
+              <Link to="/acceso" search={{ redirect: "/", mode: "registro" }}>
+                Crear cuenta
+              </Link>
+            </Button>
+            <Button asChild size="lg" variant="outline">
+              <Link to="/acceso" search={{ redirect: "/", mode: "login" }}>
+                Iniciar sesión
+              </Link>
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -125,10 +215,19 @@ function NextAppointmentSection() {
   return (
     <Card className="border-dashed border-border bg-card shadow-none">
       <CardContent className="flex flex-col items-center p-8 text-center sm:p-10">
-        <span className="flex size-14 items-center justify-center rounded-full bg-clinical-soft text-primary"><CalendarDays className="size-7" /></span>
+        <span className="flex size-14 items-center justify-center rounded-full bg-clinical-soft text-primary">
+          <CalendarDays className="size-7" />
+        </span>
         <h2 className="mt-4 text-2xl font-bold">No tienes citas programadas</h2>
-        <p className="mt-2 max-w-md leading-7 text-muted-foreground">Encuentra al profesional que necesitas y reserva tu próxima atención médica fácilmente.</p>
-        <Button asChild size="lg" className="mt-6"><Link to="/buscar-citas"><Search />Buscar y agendar cita</Link></Button>
+        <p className="mt-2 max-w-md leading-7 text-muted-foreground">
+          Encuentra al profesional que necesitas y reserva tu próxima atención médica fácilmente.
+        </p>
+        <Button asChild size="lg" className="mt-6">
+          <Link to="/buscar-citas">
+            <Search />
+            Buscar y agendar cita
+          </Link>
+        </Button>
       </CardContent>
     </Card>
   );
