@@ -10,7 +10,8 @@ export async function fetchPublicDoctors(): Promise<(PublicDoctor & { is_active:
     .order("full_name");
   if (error) {
     console.error("Error al cargar profesionales:", error);
-    throw error;
+    const host = String(import.meta.env["VITE_SUPABASE_URL"] ?? "sin VITE_SUPABASE_URL").replace(/^https?:\/\//, "");
+    throw new Error(`${error.message} (código ${error.code ?? "?"}) · proyecto: ${host}`);
   }
   return data ?? [];
 }

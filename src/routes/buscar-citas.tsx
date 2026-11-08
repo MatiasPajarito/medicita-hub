@@ -182,6 +182,10 @@ function SearchAppointments() {
             <p className="font-semibold text-destructive">
               No pudimos cargar los profesionales de salud.
             </p>
+            {/* Diagnóstico temporal: quitar cuando se resuelva */}
+            <p className="mt-2 break-words text-xs text-muted-foreground">
+              {doctors.error instanceof Error ? doctors.error.message : String(doctors.error)}
+            </p>
             <Button variant="outline" size="sm" onClick={() => doctors.refetch()} className="mt-4">
               Reintentar
             </Button>
