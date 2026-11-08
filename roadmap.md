@@ -1,5 +1,8 @@
 # Roadmap
 
+- [ ] MUST-05: mostrar bloques ocupados y reservar citas confirmed con protección atómica contra solapamientos.
+- [ ] MUST-05: probar concurrencia, disponibilidad y confirmación de reserva.
+
 - [ ] MUST-06: cargar citas reales del paciente, próximas e historial, y cancelar con confirmación y permisos seguros.
 - [ ] MUST-06: verificar filtros, cancelación y visualización en escritorio/móvil.
 
