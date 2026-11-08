@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatFeeCLP } from "@/lib/doctor-filter";
 import {
-  DEMO_CARDS,
   cardBrand,
   formatCardNumber,
   formatExpiry,
@@ -61,11 +60,6 @@ export function PaymentStep({ summary, onBack, onApproved }: { summary: Checkout
   return (
     <div className="grid gap-4">
       <SummaryRows summary={summary} />
-
-      <div className="rounded-lg border border-primary/20 bg-clinical-soft p-3 text-sm text-primary">
-        <p className="font-semibold">Modo demostración: no se realiza ningún cobro real.</p>
-        <p className="mt-1">Aprobada: <span className="font-mono">{DEMO_CARDS.approved}</span> · Rechazada: <span className="font-mono">{DEMO_CARDS.rejected}</span> (cualquier fecha futura y CVV de 3 dígitos).</p>
-      </div>
 
       <div className="grid gap-3">
         <div className="grid gap-1.5">
