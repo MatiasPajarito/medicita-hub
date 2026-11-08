@@ -4,6 +4,7 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
   HeadContent,
   Scripts,
   type ErrorComponentProps,
@@ -12,7 +13,7 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { AppShell } from "@/components/medicita/app-shell";
+import { MobileBottomNav, Navbar } from "@/components/medicita/Navbar";
 import { Toaster } from "@/components/ui/sonner";
 
 function NotFoundComponent() {
@@ -120,12 +121,24 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const routerState = useRouterState();
+  const currentPath = routerState.location.pathname;
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <AppShell><Outlet /></AppShell>
-      <Toaster position="top-right" richColors />
+      <div className="min-h-screen bg-background text-foreground dark:bg-slate-950 dark:text-slate-100 flex flex-col antialiased selection:bg-primary/20 selection:text-primary">
+        <Navbar />
+
+        <main
+          key={currentPath}
+          className="route-transition flex-1 pb-20 animate-in fade-in duration-200 fill-mode-forwards ease-out sm:pb-0"
+        >
+          <Outlet />
+        </main>
+
+        <MobileBottomNav />
+        <Toaster position="top-right" richColors />
+      </div>
     </QueryClientProvider>
   );
 }

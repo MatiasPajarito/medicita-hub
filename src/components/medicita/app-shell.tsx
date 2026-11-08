@@ -5,14 +5,15 @@ import { MobileBottomNav, Navbar } from "@/components/medicita/Navbar";
 export { Navbar, MobileBottomNav };
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const routerState = useRouterState();
+  const currentPath = routerState.location.pathname;
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-background text-foreground dark:bg-slate-950 dark:text-slate-100 flex flex-col antialiased selection:bg-primary/20 selection:text-primary">
       <Navbar />
       <main
-        key={pathname}
-        className="pb-20 transition-opacity duration-300 ease-in-out motion-safe:animate-fadeIn sm:pb-0"
+        key={currentPath}
+        className="route-transition flex-1 pb-20 animate-in fade-in duration-200 fill-mode-forwards ease-out sm:pb-0"
       >
         {children}
       </main>

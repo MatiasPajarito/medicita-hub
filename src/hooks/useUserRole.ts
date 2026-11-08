@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 
@@ -46,10 +46,12 @@ function readCachedRoleData(): ResolvedUserRoleData | undefined {
   if (memoryRoleCache) return memoryRoleCache;
   if (typeof window === "undefined") return undefined;
   try {
-    const raw = window.sessionStorage.getItem(ROLE_CACHE_STORAGE_KEY);
+    const raw =
+      window.localStorage.getItem(ROLE_CACHE_STORAGE_KEY) ??
+      window.sessionStorage.getItem(ROLE_CACHE_STORAGE_KEY);
     if (!raw) return undefined;
     const parsed = JSON.parse(raw) as ResolvedUserRoleData;
-    if (typeof parsed.signedIn === "boolean") {
+    if (typeof parsed.signedIn === "boolean" && parsed.signedIn) {
       memoryRoleCache = parsed;
       return parsed;
     }
@@ -63,7 +65,14 @@ function writeCachedRoleData(data: ResolvedUserRoleData) {
   memoryRoleCache = data;
   if (typeof window === "undefined") return;
   try {
-    window.sessionStorage.setItem(ROLE_CACHE_STORAGE_KEY, JSON.stringify(data));
+    if (data.signedIn) {
+      const serialized = JSON.stringify(data);
+      window.localStorage.setItem(ROLE_CACHE_STORAGE_KEY, serialized);
+      window.sessionStorage.setItem(ROLE_CACHE_STORAGE_KEY, serialized);
+    } else {
+      window.localStorage.removeItem(ROLE_CACHE_STORAGE_KEY);
+      window.sessionStorage.removeItem(ROLE_CACHE_STORAGE_KEY);
+    }
   } catch {
     // Ignore storage write errors
   }
@@ -73,6 +82,7 @@ export function clearCachedRoleData() {
   memoryRoleCache = GUEST_ROLE_DATA;
   if (typeof window === "undefined") return;
   try {
+    window.localStorage.removeItem(ROLE_CACHE_STORAGE_KEY);
     window.sessionStorage.removeItem(ROLE_CACHE_STORAGE_KEY);
   } catch {
     // Ignore storage errors
@@ -174,16 +184,25 @@ export async function fetchUserRoleData(): Promise<ResolvedUserRoleData> {
 
 export function useUserRole(): UseUserRoleResult {
   const queryClient = useQueryClient();
+  const [hasHydrated, setHasHydrated] = useState(() => typeof window !== "undefined");
+  const [isResolvingAuthEvent, setIsResolvingAuthEvent] = useState(false);
 
   useEffect(() => {
-    const { data } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_OUT" || !session?.user) {
+    setHasHydrated(true);
+    const { data } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_OUT") {
+        setIsResolvingAuthEvent(false);
         clearCachedRoleData();
         queryClient.setQueryData<ResolvedUserRoleData>(USER_ROLE_QUERY_KEY, GUEST_ROLE_DATA);
         return;
       }
       if (event === "SIGNED_IN" || event === "USER_UPDATED") {
-        void queryClient.invalidateQueries({ queryKey: USER_ROLE_QUERY_KEY });
+        if (!memoryRoleCache?.signedIn) {
+          setIsResolvingAuthEvent(true);
+        }
+        void queryClient
+          .invalidateQueries({ queryKey: USER_ROLE_QUERY_KEY })
+          .finally(() => setIsResolvingAuthEvent(false));
       }
     });
     return () => data.subscription.unsubscribe();
@@ -194,6 +213,7 @@ export function useUserRole(): UseUserRoleResult {
   const query = useQuery({
     queryKey: USER_ROLE_QUERY_KEY,
     queryFn: fetchUserRoleData,
+    enabled: typeof window !== "undefined",
     ...(cachedInitial ? { initialData: cachedInitial } : {}),
     placeholderData: (previousData) => previousData,
     staleTime: 5 * 60 * 1000,
@@ -201,9 +221,9 @@ export function useUserRole(): UseUserRoleResult {
     refetchOnWindowFocus: false,
   });
 
-  const isLoading = query.isPending && !query.data;
+  const isLoading = !hasHydrated || isResolvingAuthEvent || (query.isPending && !query.data);
   const isAuthReady = !isLoading;
-  const resolved = query.data ?? GUEST_ROLE_DATA;
+  const resolved = query.data ?? cachedInitial ?? GUEST_ROLE_DATA;
 
   return {
     ...resolved,
