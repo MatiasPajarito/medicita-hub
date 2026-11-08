@@ -86,7 +86,6 @@ const initials = (name: string) =>
     .join("")
     .toUpperCase();
 
-// Asignación de iconos y estilos de distinción por especialidad
 function getSpecialtyStyle(specialty: string) {
   const norm = specialty.toLowerCase();
   if (norm.includes("cardio")) {
@@ -282,7 +281,7 @@ function DoctorsDirectory() {
             )}
 
             {filteredDoctors.length > 0 && (
-              <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+              <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3 auto-rows-fr">
                 {filteredDoctors.map((doctor) => {
                   const style = getSpecialtyStyle(doctor.specialty);
                   const Icon = style.icon;
@@ -290,66 +289,78 @@ function DoctorsDirectory() {
                   return (
                     <Card
                       key={doctor.id}
-                      className="flex flex-col border border-border/80 bg-slate-900/40 hover:bg-slate-900/80 transition-all duration-200 hover:border-slate-700 shadow-sm rounded-xl overflow-hidden"
+                      className="flex flex-col h-full border border-border/80 bg-slate-900/40 hover:bg-slate-900/80 transition-all duration-200 hover:border-slate-700 shadow-sm rounded-xl overflow-hidden"
                     >
-                      {/* Cabecera con identidad de especialidad */}
-                      <div className="p-5 pb-3 border-b border-border/50 bg-slate-950/40 flex items-start justify-between gap-3">
-                        <div className="flex items-center gap-3">
-                          <div
-                            className={`size-12 rounded-xl flex items-center justify-center font-bold text-base border shrink-0 ${style.avatarBg}`}
-                          >
-                            {initials(doctor.full_name)}
-                          </div>
-                          <div>
-                            <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider block">
-                              {style.areaLabel}
-                            </span>
-                            <div className="flex items-center gap-1.5 mt-0.5">
-                              <h2 className="text-lg font-bold text-white tracking-tight leading-snug">
-                                {doctor.full_name}
-                              </h2>
-                              <CheckCircle2
-                                className="size-4 shrink-0 text-emerald-400"
-                                aria-label="Profesional verificado"
-                              />
+                      {/* Cabecera simétrica con altura uniforme */}
+                      <div className="p-5 pb-4 border-b border-border/50 bg-slate-950/40">
+                        <div className="flex items-start justify-between gap-3 min-h-[58px]">
+                          <div className="flex items-start gap-3 flex-1 min-w-0">
+                            <div
+                              className={`size-12 rounded-xl flex items-center justify-center font-bold text-sm border shrink-0 ${style.avatarBg}`}
+                            >
+                              {initials(doctor.full_name)}
+                            </div>
+
+                            <div className="min-w-0 flex-1">
+                              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block truncate">
+                                {style.areaLabel}
+                              </span>
+                              <div className="h-[46px] flex items-center mt-0.5">
+                                <h2 className="text-base font-bold text-white tracking-tight leading-snug line-clamp-2">
+                                  {doctor.full_name}
+                                </h2>
+                                <CheckCircle2
+                                  className="size-4 shrink-0 text-emerald-400 ml-1.5 inline-block"
+                                  aria-label="Profesional verificado"
+                                />
+                              </div>
                             </div>
                           </div>
-                        </div>
 
-                        <Badge
-                          variant="outline"
-                          onClick={() => handleSpecialtyChange(doctor.specialty)}
-                          className={`gap-1.5 py-1 px-2.5 cursor-pointer shrink-0 transition-colors ${style.badgeClass}`}
-                          title={`Filtrar por ${doctor.specialty}`}
-                        >
-                          <Icon className="size-3.5" />
-                          {doctor.specialty}
-                        </Badge>
+                          <Badge
+                            variant="outline"
+                            onClick={() => handleSpecialtyChange(doctor.specialty)}
+                            className={`gap-1.5 py-1 px-2.5 cursor-pointer shrink-0 transition-colors whitespace-nowrap ${style.badgeClass}`}
+                            title={`Filtrar por ${doctor.specialty}`}
+                          >
+                            <Icon className="size-3.5" />
+                            {doctor.specialty}
+                          </Badge>
+                        </div>
                       </div>
 
-                      {/* Descripción y Registro Médico */}
-                      <CardContent className="flex flex-1 flex-col p-5">
-                        <p className="line-clamp-3 text-sm text-slate-300 leading-relaxed min-h-[4.2rem]">
-                          {doctor.bio || "Profesional de la salud enfocado en la atención médica integral y personalizada."}
-                        </p>
-
-                        <div className="mt-3 flex items-center gap-2 text-xs text-slate-400">
-                          <ShieldCheck className="size-3.5 text-slate-500" />
-                          <span>Registro: {doctor.license_number || "Acreditado SIS"}</span>
+                      {/* Cuerpo de tarjeta nivelado */}
+                      <CardContent className="flex flex-1 flex-col p-5 pt-4">
+                        <div className="h-[66px] flex items-start">
+                          <p className="line-clamp-3 text-xs leading-relaxed text-slate-300">
+                            {doctor.bio ||
+                              "Profesional de la salud enfocado en la atención médica integral y personalizada."}
+                          </p>
                         </div>
 
-                        {/* Pie de tarjeta con arancel y botón de agenda */}
+                        <div className="h-6 flex items-center gap-2 text-xs text-slate-400 mt-2 mb-4">
+                          <ShieldCheck className="size-3.5 text-slate-500 shrink-0" />
+                          <span className="truncate">
+                            Registro: {doctor.license_number || "Acreditado SIS"}
+                          </span>
+                        </div>
+
+                        {/* Pie con precio y botón de reserva alineados al fondo */}
                         <div className="mt-auto pt-4 border-t border-border/60 flex items-center justify-between gap-3">
                           <div>
-                            <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">
+                            <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">
                               Valor consulta
                             </p>
-                            <p className="text-lg font-extrabold text-white">
+                            <p className="text-lg font-extrabold text-white leading-tight">
                               {formatFeeCLP(doctor.consultation_fee)}
                             </p>
                           </div>
 
-                          <Button asChild size="sm" className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground">
+                          <Button
+                            asChild
+                            size="sm"
+                            className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-medium shrink-0"
+                          >
                             <Link
                               to="/buscar-citas"
                               search={{
