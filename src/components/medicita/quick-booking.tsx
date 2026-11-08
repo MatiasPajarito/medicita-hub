@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { CalendarCheck, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,12 +7,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BookingDialog } from "@/components/medicita/booking-dialog";
-import { listDoctors } from "@/lib/clinical.functions";
+import { fetchPublicDoctors } from "@/lib/doctors";
 import { matchesSpecialty } from "@/lib/booking";
 
 export function QuickBooking() {
-  const fetchDoctors = useServerFn(listDoctors);
-  const doctors = useQuery({ queryKey: ["doctors"], queryFn: () => fetchDoctors() });
+  const doctors = useQuery({ queryKey: ["doctors"], queryFn: fetchPublicDoctors });
   const [specialty, setSpecialty] = useState("all");
   const [doctorId, setDoctorId] = useState("all");
   const [date, setDate] = useState("");

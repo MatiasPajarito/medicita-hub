@@ -1,5 +1,4 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { CalendarPlus, CheckCircle2, RotateCcw, SearchX, Stethoscope } from "lucide-react";
@@ -10,7 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { BookingDialog } from "@/components/medicita/booking-dialog";
 import { DoctorFilterBar } from "@/components/medicita/doctor-filters";
 import type { PublicDoctor } from "@/lib/booking";
-import { listDoctors } from "@/lib/clinical.functions";
+import { fetchPublicDoctors } from "@/lib/doctors";
 import { specialties as clinicalSpecialties } from "@/lib/clinical-schemas";
 import {
   filterAndSortDoctors,
@@ -73,8 +72,7 @@ const initials = (name: string) =>
     .toUpperCase();
 
 function SearchAppointments() {
-  const fetchDoctors = useServerFn(listDoctors);
-  const doctors = useQuery({ queryKey: ["doctors"], queryFn: () => fetchDoctors() });
+  const doctors = useQuery({ queryKey: ["doctors"], queryFn: fetchPublicDoctors });
   const searchParams = Route.useSearch();
   const navigate = useNavigate();
 
