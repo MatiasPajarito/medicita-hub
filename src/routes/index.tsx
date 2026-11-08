@@ -1,13 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
-import { QuickBooking } from "@/components/medicita/quick-booking";
-import { MediCitaIcon } from "@/components/common/MediCitaLogo";
 import {
   CalendarDays,
   CheckCircle2,
   ChevronRight,
-  Clock3,
   FileHeart,
   HeartPulse,
   MapPin,
@@ -16,10 +11,13 @@ import {
   Stethoscope,
   Video,
 } from "lucide-react";
-
+import { MediCitaIcon } from "@/components/common/MediCitaLogo";
+import { DoctorDashboardView } from "@/components/medicita/DoctorDashboardView";
+import { QuickBooking } from "@/components/medicita/quick-booking";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { useUserRole } from "@/hooks/useUserRole";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -50,6 +48,12 @@ const specialties = [
 ];
 
 function HomePage() {
+  const { signedIn, isDoctor, doctorData, email, loading } = useUserRole();
+
+  if (signedIn && isDoctor) {
+    return <DoctorDashboardView doctorData={doctorData} email={email} />;
+  }
+
   return (
     <>
       <section className="border-b border-border bg-surface-subtle">
@@ -126,7 +130,7 @@ function HomePage() {
 
       <section className="border-y border-border bg-surface-subtle">
         <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-          <NextAppointmentSection />
+          <NextAppointmentSection signedIn={signedIn} isLoading={loading} />
         </div>
       </section>
 
@@ -165,18 +169,14 @@ function HomePage() {
   );
 }
 
-function NextAppointmentSection() {
-  const [signedIn, setSignedIn] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    void supabase.auth.getSession().then(({ data }) => setSignedIn(Boolean(data.session)));
-    const { data } = supabase.auth.onAuthStateChange((_e, session) =>
-      setSignedIn(Boolean(session)),
-    );
-    return () => data.subscription.unsubscribe();
-  }, []);
-
-  if (signedIn === null) return <div className="h-40 animate-pulse rounded-lg bg-muted/50" />;
+function NextAppointmentSection({
+  signedIn,
+  isLoading,
+}: {
+  signedIn: boolean;
+  isLoading: boolean;
+}) {
+  if (isLoading) return <div className="h-40 animate-pulse rounded-lg bg-muted/50" />;
 
   if (!signedIn) {
     return (
@@ -211,23 +211,30 @@ function NextAppointmentSection() {
     );
   }
 
-  // Aún no existe un registro de citas en la base de datos: sin citas reservadas.
   return (
     <Card className="border-dashed border-border bg-card shadow-none">
       <CardContent className="flex flex-col items-center p-8 text-center sm:p-10">
         <span className="flex size-14 items-center justify-center rounded-full bg-clinical-soft text-primary">
           <CalendarDays className="size-7" />
         </span>
-        <h2 className="mt-4 text-2xl font-bold">No tienes citas programadas</h2>
+        <h2 className="mt-4 text-2xl font-bold">Gestiona tus próximas atenciones</h2>
         <p className="mt-2 max-w-md leading-7 text-muted-foreground">
-          Encuentra al profesional que necesitas y reserva tu próxima atención médica fácilmente.
+          Encuentra al profesional que necesitas o revisa el estado de tus citas agendadas.
         </p>
-        <Button asChild size="lg" className="mt-6">
-          <Link to="/buscar-citas">
-            <Search />
-            Buscar y agendar cita
-          </Link>
-        </Button>
+        <div className="mt-6 flex flex-wrap justify-center gap-3">
+          <Button asChild size="lg">
+            <Link to="/buscar-citas">
+              <Search />
+              Buscar y agendar cita
+            </Link>
+          </Button>
+          <Button asChild size="lg" variant="outline">
+            <Link to="/mi-agenda" search={{ tab: "upcoming" }}>
+              <CalendarDays />
+              Ir a Mi agenda
+            </Link>
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );

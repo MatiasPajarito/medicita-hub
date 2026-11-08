@@ -18,6 +18,7 @@ import { Route as PortalProfesionalRouteImport } from './routes/portal-profesion
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedMiAgendaRouteImport } from './routes/_authenticated/mi-agenda'
 import { Route as AuthenticatedPerfilRouteImport } from './routes/_authenticated/perfil'
+import { Route as AuthenticatedDoctorCitasRouteImport } from './routes/_authenticated/doctor/citas'
 import { Route as AuthenticatedDoctorDisponibilidadRouteImport } from './routes/_authenticated/doctor/disponibilidad'
 
 const IndexRoute = IndexRouteImport.update({
@@ -64,6 +65,12 @@ const AuthenticatedPerfilRoute = AuthenticatedPerfilRouteImport.update({
   path: '/perfil',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedDoctorCitasRoute =
+  AuthenticatedDoctorCitasRouteImport.update({
+    id: '/doctor/citas',
+    path: '/doctor/citas',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedDoctorDisponibilidadRoute =
   AuthenticatedDoctorDisponibilidadRouteImport.update({
     id: '/doctor/disponibilidad',
@@ -80,6 +87,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AuthenticatedAdminRoute
   '/mi-agenda': typeof AuthenticatedMiAgendaRoute
   '/perfil': typeof AuthenticatedPerfilRoute
+  '/doctor/citas': typeof AuthenticatedDoctorCitasRoute
   '/doctor/disponibilidad': typeof AuthenticatedDoctorDisponibilidadRoute
 }
 export interface FileRoutesByTo {
@@ -91,6 +99,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AuthenticatedAdminRoute
   '/mi-agenda': typeof AuthenticatedMiAgendaRoute
   '/perfil': typeof AuthenticatedPerfilRoute
+  '/doctor/citas': typeof AuthenticatedDoctorCitasRoute
   '/doctor/disponibilidad': typeof AuthenticatedDoctorDisponibilidadRoute
 }
 export interface FileRoutesById {
@@ -104,6 +113,7 @@ export interface FileRoutesById {
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/mi-agenda': typeof AuthenticatedMiAgendaRoute
   '/_authenticated/perfil': typeof AuthenticatedPerfilRoute
+  '/_authenticated/doctor/citas': typeof AuthenticatedDoctorCitasRoute
   '/_authenticated/doctor/disponibilidad': typeof AuthenticatedDoctorDisponibilidadRoute
 }
 export interface FileRouteTypes {
@@ -117,6 +127,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/mi-agenda'
     | '/perfil'
+    | '/doctor/citas'
     | '/doctor/disponibilidad'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -128,6 +139,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/mi-agenda'
     | '/perfil'
+    | '/doctor/citas'
     | '/doctor/disponibilidad'
   id:
     | '__root__'
@@ -140,6 +152,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin'
     | '/_authenticated/mi-agenda'
     | '/_authenticated/perfil'
+    | '/_authenticated/doctor/citas'
     | '/_authenticated/doctor/disponibilidad'
   fileRoutesById: FileRoutesById
 }
@@ -217,6 +230,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPerfilRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/doctor/citas': {
+      id: '/_authenticated/doctor/citas'
+      path: '/doctor/citas'
+      fullPath: '/doctor/citas'
+      preLoaderRoute: typeof AuthenticatedDoctorCitasRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/doctor/disponibilidad': {
       id: '/_authenticated/doctor/disponibilidad'
       path: '/doctor/disponibilidad'
@@ -231,6 +251,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
   AuthenticatedMiAgendaRoute: typeof AuthenticatedMiAgendaRoute
   AuthenticatedPerfilRoute: typeof AuthenticatedPerfilRoute
+  AuthenticatedDoctorCitasRoute: typeof AuthenticatedDoctorCitasRoute
   AuthenticatedDoctorDisponibilidadRoute: typeof AuthenticatedDoctorDisponibilidadRoute
 }
 
@@ -238,6 +259,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRoute,
   AuthenticatedMiAgendaRoute: AuthenticatedMiAgendaRoute,
   AuthenticatedPerfilRoute: AuthenticatedPerfilRoute,
+  AuthenticatedDoctorCitasRoute: AuthenticatedDoctorCitasRoute,
   AuthenticatedDoctorDisponibilidadRoute:
     AuthenticatedDoctorDisponibilidadRoute,
 }
