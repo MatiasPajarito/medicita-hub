@@ -9,6 +9,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock3,
+  CreditCard,
   MapPin,
   Video,
 } from "lucide-react";
@@ -40,8 +41,10 @@ import {
   type PublicDoctor,
 } from "@/lib/booking";
 import type { DayRule } from "@/lib/schedule";
+import type { PaymentReceipt } from "@/lib/payment-demo";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
+import { PaymentReceiptView, PaymentStep, type CheckoutSummary } from "@/components/medicita/payment-step";
 
 export interface BookingDialogProps {
   doctor: PublicDoctor | null;
@@ -128,6 +131,9 @@ function BookingPanel({
     initialModality === "telemedicina" ? "telemedicina" : "presencial",
   );
   const [saving, setSaving] = useState(false);
+  const [step, setStep] = useState<"select" | "payment" | "done">("select");
+  const [receipt, setReceipt] = useState<PaymentReceipt | null>(null);
+  const [locked, setLocked] = useState<CheckoutSummary | null>(null);
 
   const user = useQuery({
     queryKey: ["booking-user"],
@@ -274,7 +280,34 @@ function BookingPanel({
     setSlot("");
   }
 
-  async function confirm() {
+  // Paso 1 -> 2: exige sesión y pasa al pago (si la consulta es gratuita, confirma directo).
+  async function startCheckout() {
+    if (!activeDay || !slot) return;
+    const { data: authData } = await supabase.auth.getUser();
+    const currentUser = user.data ?? authData.user;
+    if (!currentUser) {
+      toast.error("Inicia sesión para confirmar tu cita médica.");
+      onClose();
+      await navigate({
+        to: "/acceso",
+        search: { redirect: `/buscar-citas?doctor=${doctor.id}&date=${activeDay.date}`, mode: "login" },
+      });
+      return;
+    }
+    setLocked({
+      doctorName: doctor.full_name,
+      specialty: doctor.specialty,
+      dateLabel: format(parseISO(activeDay.date), "EEEE d 'de' MMMM", { locale: es }),
+      timeLabel: `${slot} h`,
+      modality,
+      amount: doctor.consultation_fee,
+    });
+    if (doctor.consultation_fee > 0) setStep("payment");
+    else await saveAppointment(null);
+  }
+
+  // Paso 2 -> 3: con el pago aprobado (simulado) se guarda la cita ya confirmada.
+  async function saveAppointment(paid: PaymentReceipt | null) {
     if (!activeDay || !slot) return;
 
     setSaving(true);
@@ -344,8 +377,8 @@ function BookingPanel({
       await queryClient.invalidateQueries({ queryKey: ["booking-availability"] });
 
       toast.success("¡Cita agendada con éxito!");
-      onClose();
-      await navigate({ to: "/mi-agenda", search: { tab: "upcoming" } });
+      setReceipt(paid);
+      setStep("done");
     } catch (error) {
       console.error("Error al reservar cita:", error);
       toast.error(
@@ -354,6 +387,7 @@ function BookingPanel({
           : "No pudimos confirmar la reserva. La hora puede haber sido ocupada.",
       );
       setSlot("");
+      setStep("select");
       await availability.refetch();
     } finally {
       setSaving(false);
@@ -369,7 +403,7 @@ function BookingPanel({
         </DialogDescription>
       </DialogHeader>
 
-      <div className="grid gap-5 pt-2">
+      <div className={cn("grid gap-5 pt-2", step !== "select" && "hidden")}>
         {/* 1. Selector de Fecha en Cinta Semanal Horizontal (Inspirado en estilo Bupa) */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
@@ -565,14 +599,22 @@ function BookingPanel({
             size="lg"
             className="h-12 w-full text-base font-bold shadow-clinical"
             disabled={!slot || saving}
-            onClick={confirm}
+            onClick={() => void startCheckout()}
           >
-            <CalendarCheck className="size-5" />
+            {doctor.consultation_fee > 0 ? (
+              <CreditCard className="size-5" />
+            ) : (
+              <CalendarCheck className="size-5" />
+            )}
             {saving
               ? "Confirmando cita…"
-              : slot
-                ? `Confirmar Cita - ${slot}`
-                : "Confirmar Cita"}
+              : doctor.consultation_fee > 0
+                ? slot
+                  ? `Continuar al pago - ${slot}`
+                  : "Continuar al pago"
+                : slot
+                  ? `Confirmar Cita - ${slot}`
+                  : "Confirmar Cita"}
           </Button>
 
           {!user.data && !user.isPending && (
@@ -593,6 +635,21 @@ function BookingPanel({
           )}
         </div>
       </div>
+
+      {step === "payment" && locked && (
+        <div className="pt-2">
+          <PaymentStep
+            summary={locked}
+            onBack={() => setStep("select")}
+            onApproved={(paid) => void saveAppointment(paid)}
+          />
+        </div>
+      )}
+      {step === "done" && locked && (
+        <div className="pt-2">
+          <PaymentReceiptView summary={locked} receipt={receipt} onClose={onClose} />
+        </div>
+      )}
     </>
   );
 }
