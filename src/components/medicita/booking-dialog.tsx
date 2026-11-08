@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { addDays, addMinutes, format, parseISO } from "date-fns";
@@ -40,6 +40,7 @@ import {
   type BusySlot,
   type PublicDoctor,
 } from "@/lib/booking";
+import { formatFeeCLP } from "@/lib/doctor-filter";
 import type { DayRule } from "@/lib/schedule";
 import type { PaymentReceipt } from "@/lib/payment-demo";
 import { supabase } from "@/lib/supabase";
@@ -59,11 +60,13 @@ export function BookingDialog({
   initialModality = "todas",
   onClose,
 }: BookingDialogProps) {
+  // Mientras se procesa el pago o se guarda la cita no se puede cerrar (X, Escape o clic fuera).
+  const [busy, setBusy] = useState(false);
   return (
     <Dialog
       open={!!doctor}
       onOpenChange={(open) => {
-        if (!open) onClose();
+        if (!open && !busy) onClose();
       }}
     >
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
@@ -74,6 +77,7 @@ export function BookingDialog({
             initialDate={initialDate}
             initialModality={initialModality}
             onClose={onClose}
+            onBusyChange={setBusy}
           />
         )}
       </DialogContent>
@@ -83,12 +87,21 @@ export function BookingDialog({
 
 export const BookingModal = BookingDialog;
 
-/** Los errores de Supabase (PostgrestError) no son `Error`: se lee `message` igualmente para mostrar el motivo real. */
+/** Traduce los errores de Supabase/Postgres a mensajes entendibles para el paciente. */
 function errorMessage(error: unknown): string {
-  if (error && typeof error === "object" && "message" in error && typeof (error as { message: unknown }).message === "string") {
-    return (error as { message: string }).message;
+  const info: { code?: unknown; message?: unknown } =
+    error && typeof error === "object" ? (error as { code?: unknown; message?: unknown }) : {};
+  const code = typeof info.code === "string" ? info.code : "";
+  const message = typeof info.message === "string" ? info.message : "";
+  if (code === "23P01" || /exclusion constraint/i.test(message)) {
+    return "Esa hora ya fue tomada por otro paciente. Elige otro horario.";
   }
-  return "No pudimos confirmar la reserva. La hora puede haber sido ocupada.";
+  if (code === "42501" || /row-level security/i.test(message)) {
+    return "No tienes permiso para agendar esta cita. Vuelve a iniciar sesión e inténtalo de nuevo.";
+  }
+  // P0001: mensajes en español que lanza a propósito la validación de la base ("El bloque seleccionado no está disponible", etc.)
+  if (code === "P0001" && message) return message;
+  return "No pudimos confirmar la reserva. Inténtalo nuevamente.";
 }
 
 function BookingPanel({
@@ -96,11 +109,13 @@ function BookingPanel({
   initialDate,
   initialModality,
   onClose,
+  onBusyChange,
 }: {
   doctor: PublicDoctor;
   initialDate?: string | undefined;
   initialModality: string;
   onClose: () => void;
+  onBusyChange: (busy: boolean) => void;
 }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -142,6 +157,16 @@ function BookingPanel({
   const [step, setStep] = useState<"select" | "payment" | "done">("select");
   const [receipt, setReceipt] = useState<PaymentReceipt | null>(null);
   const [locked, setLocked] = useState<CheckoutSummary | null>(null);
+  const [paying, setPaying] = useState(false);
+  // Candados contra doble clic (el estado de React llega tarde si se hace clic muy rápido).
+  const savingRef = useRef(false);
+  const startingRef = useRef(false);
+
+  const busy = saving || paying;
+  useEffect(() => {
+    onBusyChange(busy);
+  }, [busy, onBusyChange]);
+  useEffect(() => () => onBusyChange(false), [onBusyChange]);
 
   const user = useQuery({
     queryKey: ["booking-user"],
@@ -163,7 +188,7 @@ function BookingPanel({
       const busySlots: BusySlot[] = [];
 
       try {
-        const [scheduleRes, appointmentsRes] = await Promise.all([
+        const [scheduleRes, appointmentsRes, rpcRes] = await Promise.all([
           supabase.from("doctor_schedules").select("*").eq("doctor_id", doctor.id),
           supabase
             .from("appointments")
@@ -171,6 +196,13 @@ function BookingPanel({
             .eq("doctor_id", doctor.id)
             .gte("appointment_date", fromDate)
             .lte("appointment_date", untilDate),
+          // La política de seguridad solo deja leer las citas propias; esta función devuelve las horas
+          // ocupadas de todos los pacientes, así no se ofrecen horarios ya tomados.
+          supabase.rpc("booked_clinical_slots", {
+            _doctor_id: doctor.id,
+            _from: fromDate,
+            _to: untilDate,
+          }),
         ]);
 
         if (!scheduleRes.error && scheduleRes.data && scheduleRes.data.length > 0) {
@@ -189,31 +221,33 @@ function BookingPanel({
           }
         }
 
+        const seen = new Set<string>();
+        const addBusy = (item: BusySlot) => {
+          const key = `${item.appointment_date}|${item.start_time}|${item.end_time}`;
+          if (seen.has(key)) return;
+          seen.add(key);
+          busySlots.push(item);
+        };
+
         if (!appointmentsRes.error && appointmentsRes.data) {
           for (const appt of appointmentsRes.data) {
             if (appt.status !== "cancelled" && appt.status !== "cancelada") {
-              busySlots.push({
+              addBusy({
                 appointment_date: appt.appointment_date,
                 start_time: appt.start_time,
                 end_time: appt.end_time,
               });
             }
           }
-        } else {
-          // Optional secondary check via RPC if direct table select is restricted for anonymous visitors
-          const rpcRes = await supabase.rpc("booked_clinical_slots", {
-            _doctor_id: doctor.id,
-            _from: fromDate,
-            _to: untilDate,
-          });
-          if (!rpcRes.error && rpcRes.data) {
-            for (const item of rpcRes.data) {
-              busySlots.push({
-                appointment_date: item.appointment_date,
-                start_time: item.start_time,
-                end_time: item.end_time,
-              });
-            }
+        }
+
+        if (!rpcRes.error && rpcRes.data) {
+          for (const item of rpcRes.data) {
+            addBusy({
+              appointment_date: item.appointment_date,
+              start_time: item.start_time,
+              end_time: item.end_time,
+            });
           }
         }
       } catch {
@@ -290,6 +324,16 @@ function BookingPanel({
 
   // Paso 1 -> 2: exige sesión y pasa al pago (si la consulta es gratuita, confirma directo).
   async function startCheckout() {
+    if (startingRef.current) return;
+    startingRef.current = true;
+    try {
+      await startCheckoutInner();
+    } finally {
+      startingRef.current = false;
+    }
+  }
+
+  async function startCheckoutInner() {
     if (!activeDay || !slot) return;
     const { data: authData } = await supabase.auth.getUser();
     const currentUser = user.data ?? authData.user;
@@ -325,6 +369,8 @@ function BookingPanel({
   // Paso 2 -> 3: con el pago aprobado (simulado) se guarda la cita ya confirmada.
   async function saveAppointment(paid: PaymentReceipt | null) {
     if (!activeDay || !slot) return;
+    if (savingRef.current) return;
+    savingRef.current = true;
 
     setSaving(true);
     try {
@@ -386,6 +432,7 @@ function BookingPanel({
       setStep("select");
       await availability.refetch();
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   }
@@ -395,7 +442,7 @@ function BookingPanel({
       <DialogHeader>
         <DialogTitle className="text-xl font-bold">{doctor.full_name}</DialogTitle>
         <DialogDescription>
-          {doctor.specialty} · ${doctor.consultation_fee.toLocaleString("es-CL")} por consulta
+          {doctor.specialty} · {formatFeeCLP(doctor.consultation_fee)} por consulta
         </DialogDescription>
       </DialogHeader>
 
@@ -638,6 +685,8 @@ function BookingPanel({
             summary={locked}
             onBack={() => setStep("select")}
             onApproved={(paid) => void saveAppointment(paid)}
+            busy={saving}
+            onProcessingChange={setPaying}
           />
         </div>
       )}

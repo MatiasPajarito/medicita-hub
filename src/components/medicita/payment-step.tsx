@@ -32,7 +32,21 @@ function SummaryRows({ summary }: { summary: CheckoutSummary }) {
 }
 
 /** Paso 2 de la reserva: pago con tarjeta (simulado). */
-export function PaymentStep({ summary, onBack, onApproved }: { summary: CheckoutSummary; onBack: () => void; onApproved: (receipt: PaymentReceipt) => void }) {
+export function PaymentStep({
+  summary,
+  onBack,
+  onApproved,
+  busy = false,
+  onProcessingChange,
+}: {
+  summary: CheckoutSummary;
+  onBack: () => void;
+  onApproved: (receipt: PaymentReceipt) => void;
+  /** El padre está guardando la cita tras el pago: mantiene bloqueados los botones. */
+  busy?: boolean;
+  /** Avisa al padre mientras se procesa el pago (para impedir cerrar el diálogo a mitad de cobro). */
+  onProcessingChange?: (processing: boolean) => void;
+}) {
   const [form, setForm] = useState<CardForm>({ name: "", number: "", expiry: "", cvv: "" });
   const [errors, setErrors] = useState<CardErrors>({});
   const [processing, setProcessing] = useState(false);
@@ -46,15 +60,22 @@ export function PaymentStep({ summary, onBack, onApproved }: { summary: Checkout
   };
 
   async function pay() {
+    if (processing || busy) return;
     const found = validateCard(form);
     setErrors(found);
     if (Object.keys(found).length > 0) return;
     setProcessing(true);
+    onProcessingChange?.(true);
     setDeclined(null);
-    const result = await simulatePayment(form, summary.amount);
-    setProcessing(false);
-    if (result.approved) onApproved(result.receipt);
-    else setDeclined(result.reason);
+    try {
+      const result = await simulatePayment(form, summary.amount);
+      setProcessing(false);
+      if (result.approved) onApproved(result.receipt);
+      else setDeclined(result.reason);
+    } finally {
+      setProcessing(false);
+      onProcessingChange?.(false);
+    }
   }
 
   return (
@@ -97,10 +118,10 @@ export function PaymentStep({ summary, onBack, onApproved }: { summary: Checkout
       )}
 
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
-        <Button variant="outline" disabled={processing} onClick={onBack}><ArrowLeft />Volver</Button>
-        <Button disabled={processing} onClick={() => void pay()}>
-          {processing ? <Loader2 className="animate-spin" /> : <CreditCard />}
-          {processing ? "Procesando pago…" : `Pagar ${formatFeeCLP(summary.amount)}`}
+        <Button variant="outline" disabled={processing || busy} onClick={onBack}><ArrowLeft />Volver</Button>
+        <Button disabled={processing || busy} onClick={() => void pay()}>
+          {processing || busy ? <Loader2 className="animate-spin" /> : <CreditCard />}
+          {processing ? "Procesando pago…" : busy ? "Confirmando cita…" : `Pagar ${formatFeeCLP(summary.amount)}`}
         </Button>
       </div>
       <p className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground"><ShieldCheck className="size-3.5" />Pago seguro (simulación)</p>
