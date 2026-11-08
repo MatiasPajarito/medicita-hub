@@ -7,7 +7,11 @@ import {
   RotateCcw,
   SearchX,
   Stethoscope,
-  UserRound,
+  HeartPulse,
+  Activity,
+  Brain,
+  Baby,
+  ShieldCheck,
 } from "lucide-react";
 import { PageHeading } from "@/components/medicita/page-heading";
 import { Badge } from "@/components/ui/badge";
@@ -31,7 +35,6 @@ interface RawDoctor {
   license_number?: string | null;
   price?: number | null;
   consultation_fee?: number | null;
-  photo_url?: string | null;
   is_active?: boolean;
 }
 
@@ -83,10 +86,53 @@ const initials = (name: string) =>
     .join("")
     .toUpperCase();
 
+// Asignación de iconos y estilos de distinción por especialidad
+function getSpecialtyStyle(specialty: string) {
+  const norm = specialty.toLowerCase();
+  if (norm.includes("cardio")) {
+    return {
+      icon: HeartPulse,
+      badgeClass: "border-rose-500/30 bg-rose-500/10 text-rose-400",
+      avatarBg: "bg-rose-500/15 text-rose-400 border-rose-500/30",
+      areaLabel: "Área Cardiovascular",
+    };
+  }
+  if (norm.includes("trauma") || norm.includes("orto")) {
+    return {
+      icon: Activity,
+      badgeClass: "border-amber-500/30 bg-amber-500/10 text-amber-400",
+      avatarBg: "bg-amber-500/15 text-amber-400 border-amber-500/30",
+      areaLabel: "Aparato Locomotor",
+    };
+  }
+  if (norm.includes("mental") || norm.includes("psic") || norm.includes("psiq")) {
+    return {
+      icon: Brain,
+      badgeClass: "border-indigo-500/30 bg-indigo-500/10 text-indigo-400",
+      avatarBg: "bg-indigo-500/15 text-indigo-400 border-indigo-500/30",
+      areaLabel: "Salud Mental y Bienestar",
+    };
+  }
+  if (norm.includes("pedia")) {
+    return {
+      icon: Baby,
+      badgeClass: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400",
+      avatarBg: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
+      areaLabel: "Atención Pediátrica",
+    };
+  }
+  return {
+    icon: Stethoscope,
+    badgeClass: "border-sky-500/30 bg-sky-500/10 text-sky-400",
+    avatarBg: "bg-sky-500/15 text-sky-400 border-sky-500/30",
+    areaLabel: "Medicina General y Preventiva",
+  };
+}
+
 async function fetchDoctorsFromSupabase() {
   const { data, error } = await supabase
     .from("doctors")
-    .select("id, full_name, specialty, bio, license_number, price, photo_url, is_active")
+    .select("id, full_name, specialty, bio, license_number, price, is_active")
     .order("full_name", { ascending: true });
 
   if (error) throw error;
@@ -224,111 +270,102 @@ function DoctorsDirectory() {
                   No se encontraron profesionales coincidentes
                 </h3>
                 <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-                  No hay médicos que coincidan con los filtros aplicados. Intenta ampliar tus
-                  términos de búsqueda o restablecer los filtros.
+                  No hay médicos que coincidan con los filtros aplicados.
                 </p>
                 <div className="mt-6 flex flex-wrap justify-center gap-3">
                   <Button onClick={handleResetFilters} variant="default" className="gap-2">
                     <RotateCcw className="size-4" />
                     Restablecer filtros
                   </Button>
-                  {specialty !== "all" && (
-                    <Button onClick={() => handleSpecialtyChange("all")} variant="outline">
-                      Ver todas las especialidades
-                    </Button>
-                  )}
                 </div>
               </Card>
             )}
 
-            {rawDoctors.length === 0 && (
-              <div className="py-20 text-center">
-                <Stethoscope className="mx-auto size-12 text-muted-foreground" />
-                <h2 className="mt-4 text-xl font-bold">Aún no hay profesionales disponibles</h2>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  El equipo médico se encuentra en proceso de incorporación.
-                </p>
-              </div>
-            )}
-
             {filteredDoctors.length > 0 && (
               <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-                {filteredDoctors.map((doctor) => (
-                  <Card
-                    key={doctor.id}
-                    className="flex flex-col overflow-hidden border-border/80 shadow-xs transition-all hover:shadow-clinical"
-                  >
-                    <div className="relative aspect-[16/10] bg-slate-900">
-                      {doctor.photo_url ? (
-                        <img
-                          src={doctor.photo_url}
-                          alt={doctor.full_name}
-                          className="h-full w-full object-cover"
-                          loading="lazy"
-                        />
-                      ) : (
-                        <div className="flex h-full flex-col items-center justify-center gap-2 text-primary/40">
-                          <UserRound className="size-16" />
-                          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                {filteredDoctors.map((doctor) => {
+                  const style = getSpecialtyStyle(doctor.specialty);
+                  const Icon = style.icon;
+
+                  return (
+                    <Card
+                      key={doctor.id}
+                      className="flex flex-col border border-border/80 bg-slate-900/40 hover:bg-slate-900/80 transition-all duration-200 hover:border-slate-700 shadow-sm rounded-xl overflow-hidden"
+                    >
+                      {/* Cabecera con identidad de especialidad */}
+                      <div className="p-5 pb-3 border-b border-border/50 bg-slate-950/40 flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`size-12 rounded-xl flex items-center justify-center font-bold text-base border shrink-0 ${style.avatarBg}`}
+                          >
                             {initials(doctor.full_name)}
-                          </span>
+                          </div>
+                          <div>
+                            <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider block">
+                              {style.areaLabel}
+                            </span>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <h2 className="text-lg font-bold text-white tracking-tight leading-snug">
+                                {doctor.full_name}
+                              </h2>
+                              <CheckCircle2
+                                className="size-4 shrink-0 text-emerald-400"
+                                aria-label="Profesional verificado"
+                              />
+                            </div>
+                          </div>
                         </div>
-                      )}
-                      <div className="absolute top-3 right-3">
-                        <button
-                          type="button"
+
+                        <Badge
+                          variant="outline"
                           onClick={() => handleSpecialtyChange(doctor.specialty)}
+                          className={`gap-1.5 py-1 px-2.5 cursor-pointer shrink-0 transition-colors ${style.badgeClass}`}
                           title={`Filtrar por ${doctor.specialty}`}
                         >
-                          <Badge
-                            variant="secondary"
-                            className="bg-background/90 backdrop-blur shadow-xs hover:bg-background transition-colors cursor-pointer"
-                          >
-                            {doctor.specialty}
-                          </Badge>
-                        </button>
-                      </div>
-                    </div>
-
-                    <CardContent className="flex flex-1 flex-col p-5">
-                      <div className="flex items-center gap-2">
-                        <h2 className="text-xl font-bold text-foreground">{doctor.full_name}</h2>
-                        <CheckCircle2
-                          className="size-4 shrink-0 text-success"
-                          aria-label="Profesional verificado"
-                        />
+                          <Icon className="size-3.5" />
+                          {doctor.specialty}
+                        </Badge>
                       </div>
 
-                      <p className="mt-2 line-clamp-3 min-h-[4.5rem] text-sm leading-6 text-muted-foreground">
-                        {doctor.bio}
-                      </p>
+                      {/* Descripción y Registro Médico */}
+                      <CardContent className="flex flex-1 flex-col p-5">
+                        <p className="line-clamp-3 text-sm text-slate-300 leading-relaxed min-h-[4.2rem]">
+                          {doctor.bio || "Profesional de la salud enfocado en la atención médica integral y personalizada."}
+                        </p>
 
-                      <div className="mt-auto pt-5 border-t border-border/60 flex items-center justify-between gap-3">
-                        <div>
-                          <p className="text-xs text-muted-foreground uppercase tracking-wider">
-                            Valor consulta
-                          </p>
-                          <p className="text-base font-extrabold text-foreground">
-                            {formatFeeCLP(doctor.consultation_fee)}
-                          </p>
+                        <div className="mt-3 flex items-center gap-2 text-xs text-slate-400">
+                          <ShieldCheck className="size-3.5 text-slate-500" />
+                          <span>Registro: {doctor.license_number || "Acreditado SIS"}</span>
                         </div>
 
-                        <Button asChild className="gap-2">
-                          <Link
-                            to="/buscar-citas"
-                            search={{
-                              doctor: doctor.id,
-                              specialty: doctor.specialty,
-                            }}
-                          >
-                            <CalendarPlus className="size-4" />
-                            Agendar cita
-                          </Link>
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                        {/* Pie de tarjeta con arancel y botón de agenda */}
+                        <div className="mt-auto pt-4 border-t border-border/60 flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">
+                              Valor consulta
+                            </p>
+                            <p className="text-lg font-extrabold text-white">
+                              {formatFeeCLP(doctor.consultation_fee)}
+                            </p>
+                          </div>
+
+                          <Button asChild size="sm" className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground">
+                            <Link
+                              to="/buscar-citas"
+                              search={{
+                                doctor: doctor.id,
+                                specialty: doctor.specialty,
+                              }}
+                            >
+                              <CalendarPlus className="size-4" />
+                              Agendar cita
+                            </Link>
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             )}
           </>
