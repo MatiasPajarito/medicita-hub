@@ -131,7 +131,7 @@ function getSpecialtyStyle(specialty: string) {
 async function fetchDoctorsFromSupabase() {
   const { data, error } = await supabase
     .from("doctors")
-    .select("id, full_name, specialty, bio, license_number, price, is_active")
+    .select("*")
     .order("full_name", { ascending: true });
 
   if (error) throw error;
@@ -144,7 +144,8 @@ async function fetchDoctorsFromSupabase() {
 
 function DoctorsDirectory() {
   const doctors = useQuery({
-    queryKey: ["doctors"],
+    // Clave propia: ["doctors"] la usan también /buscar-citas y el inicio con otro formato de datos.
+    queryKey: ["doctors", "directory"],
     queryFn: fetchDoctorsFromSupabase,
   });
 
