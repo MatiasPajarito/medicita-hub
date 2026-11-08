@@ -21,7 +21,7 @@ import {
   getSpecialtyCounts,
   type DoctorSortOption,
 } from "@/lib/doctor-filter";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase } from "@/lib/supabase";
 
 interface RawDoctor {
   id: string;
