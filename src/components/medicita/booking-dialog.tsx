@@ -83,6 +83,14 @@ export function BookingDialog({
 
 export const BookingModal = BookingDialog;
 
+/** Los errores de Supabase (PostgrestError) no son `Error`: se lee `message` igualmente para mostrar el motivo real. */
+function errorMessage(error: unknown): string {
+  if (error && typeof error === "object" && "message" in error && typeof (error as { message: unknown }).message === "string") {
+    return (error as { message: string }).message;
+  }
+  return "No pudimos confirmar la reserva. La hora puede haber sido ocupada.";
+}
+
 function BookingPanel({
   doctor,
   initialDate,
@@ -294,6 +302,14 @@ function BookingPanel({
       });
       return;
     }
+    // La cita exige una ficha en `patients`; se verifica antes de pagar para no cobrar y luego fallar.
+    const { data: patientRow } = await supabase.from("patients").select("id").eq("user_id", currentUser.id).maybeSingle();
+    if (!patientRow) {
+      toast.error("Completa tu ficha de paciente en Mi Perfil antes de reservar.");
+      onClose();
+      await navigate({ to: "/perfil" });
+      return;
+    }
     setLocked({
       doctorName: doctor.full_name,
       specialty: doctor.specialty,
@@ -328,20 +344,26 @@ function BookingPanel({
         return;
       }
 
-      // Resolve patient_id: check `patients` profile for user_id, fallback to auth user.id
+      // patient_id es siempre patients.id (la política RLS y el trigger lo exigen); nunca auth.users.id.
       const { data: patient } = await supabase
         .from("patients")
         .select("id")
         .eq("user_id", currentUser.id)
         .maybeSingle();
 
-      const targetPatientId = patient?.id ?? currentUser.id;
+      if (!patient) {
+        toast.error("Completa tu ficha de paciente en Mi Perfil antes de confirmar tu cita.");
+        onClose();
+        await navigate({ to: "/perfil" });
+        return;
+      }
+
       const duration = activeDay.duration || 30;
       const end = format(addMinutes(parseISO(`${activeDay.date}T${slot}`), duration), "HH:mm");
 
-      let { error } = await supabase.from("appointments").insert({
+      const { error } = await supabase.from("appointments").insert({
         doctor_id: doctor.id,
-        patient_id: targetPatientId,
+        patient_id: patient.id,
         appointment_date: activeDay.date,
         start_time: slot,
         end_time: end,
@@ -349,29 +371,7 @@ function BookingPanel({
         status: "confirmed",
       });
 
-      // Fallback in case patient_id column expects authUser.id directly
-      if (error && patient?.id && targetPatientId !== currentUser.id) {
-        const retry = await supabase.from("appointments").insert({
-          doctor_id: doctor.id,
-          patient_id: currentUser.id,
-          appointment_date: activeDay.date,
-          start_time: slot,
-          end_time: end,
-          modality,
-          status: "confirmed",
-        });
-        error = retry.error;
-      }
-
-      if (error) {
-        if (error.code === "23503" && !patient) {
-          toast.error("Completa tu ficha de paciente en Mi Perfil antes de confirmar tu cita.");
-          onClose();
-          await navigate({ to: "/perfil" });
-          return;
-        }
-        throw error;
-      }
+      if (error) throw error;
 
       await queryClient.invalidateQueries({ queryKey: ["appointments"] });
       await queryClient.invalidateQueries({ queryKey: ["booking-availability"] });
@@ -381,11 +381,7 @@ function BookingPanel({
       setStep("done");
     } catch (error) {
       console.error("Error al reservar cita:", error);
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "No pudimos confirmar la reserva. La hora puede haber sido ocupada.",
-      );
+      toast.error(errorMessage(error));
       setSlot("");
       setStep("select");
       await availability.refetch();
