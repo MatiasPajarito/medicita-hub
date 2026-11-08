@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1794094256979,
+      "tag": "0000_patient_agenda_and_safe_cancellation",
+      "breakpoints": true
+    }
+  ]
+}
