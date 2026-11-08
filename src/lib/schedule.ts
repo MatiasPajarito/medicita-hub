@@ -31,7 +31,7 @@ export const defaultDay = (day: number): DayRule => ({
 /** Monday-based index (0 = Lunes … 6 = Domingo) for a JS date. */
 export const mondayIndex = (date: Date) => (date.getDay() + 6) % 7;
 
-export type Slot = { time: string; available: boolean; reason?: "pausa" | "pasado" | undefined };
+export type Slot = { time: string; available: boolean; reason?: "pausa" | "pasado" | "ocupado" | undefined };
 
 /** Generate selectable slots for a date from its weekly rule. */
 export function generateSlots(rule: DayRule | undefined, date: Date, now = new Date()): Slot[] {
