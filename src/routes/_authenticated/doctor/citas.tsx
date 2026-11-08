@@ -101,6 +101,11 @@ function patientInitials(name: string) {
   );
 }
 
+type DoctorScheduleQueryData = {
+  doctor: { id: string; full_name: string; specialty: string } | null;
+  appointments: DoctorAppointmentView[];
+};
+
 function DoctorAppointmentsPage() {
   const { user } = Route.useRouteContext();
   const queryClient = useQueryClient();
@@ -108,13 +113,15 @@ function DoctorAppointmentsPage() {
     "active",
   );
   const [cancelTarget, setCancelTarget] = useState<DoctorAppointmentView | null>(null);
+  const [optimisticStatusMap, setOptimisticStatusMap] = useState<
+    Record<string, "completed" | "cancelled">
+  >({});
+
+  const queryKey = useMemo(() => ["doctor-patient-appointments", user.id] as const, [user.id]);
 
   const doctorScheduleQuery = useQuery({
-    queryKey: ["doctor-patient-appointments", user.id],
-    queryFn: async (): Promise<{
-      doctor: { id: string; full_name: string; specialty: string } | null;
-      appointments: DoctorAppointmentView[];
-    }> => {
+    queryKey,
+    queryFn: async (): Promise<DoctorScheduleQueryData> => {
       const { data: doctor, error: docError } = await supabase
         .from("doctors")
         .select("id, full_name, specialty")
@@ -208,11 +215,26 @@ function DoctorAppointmentsPage() {
       }
       return { id: appointment.id, status: nextStatus };
     },
+    onMutate: async ({ appointment, nextStatus }) => {
+      await queryClient.cancelQueries({ queryKey });
+      const previous = queryClient.getQueryData<DoctorScheduleQueryData>(queryKey);
+
+      setOptimisticStatusMap((prev) => ({ ...prev, [appointment.id]: nextStatus }));
+      queryClient.setQueryData<DoctorScheduleQueryData>(queryKey, (old) => {
+        if (!old) return old;
+        return {
+          ...old,
+          appointments: old.appointments.map((item) =>
+            item.id === appointment.id ? { ...item, status: nextStatus } : item,
+          ),
+        };
+      });
+      setCancelTarget(null);
+
+      return { previous, targetId: appointment.id };
+    },
     onSuccess: (result) => {
-      queryClient.setQueryData<{
-        doctor: { id: string; full_name: string; specialty: string } | null;
-        appointments: DoctorAppointmentView[];
-      }>(["doctor-patient-appointments", user.id], (old) => {
+      queryClient.setQueryData<DoctorScheduleQueryData>(queryKey, (old) => {
         if (!old) return old;
         return {
           ...old,
@@ -221,7 +243,6 @@ function DoctorAppointmentsPage() {
           ),
         };
       });
-      setCancelTarget(null);
       if (result.status === "completed") {
         toast.success("Cita marcada como atendida");
       } else {
@@ -232,15 +253,28 @@ function DoctorAppointmentsPage() {
       void queryClient.invalidateQueries({ queryKey: ["appointments"] });
       void queryClient.invalidateQueries({ queryKey: ["booking-availability"] });
     },
-    onError: (err) => {
+    onError: (err, _variables, context) => {
+      if (context?.targetId) {
+        setOptimisticStatusMap((prev) => {
+          const next = { ...prev };
+          delete next[context.targetId];
+          return next;
+        });
+      }
+      if (context?.previous) {
+        queryClient.setQueryData<DoctorScheduleQueryData>(queryKey, context.previous);
+      }
       toast.error(err instanceof Error ? err.message : "No pudimos actualizar la cita");
     },
   });
 
-  const appointments = useMemo(
-    () => doctorScheduleQuery.data?.appointments ?? [],
-    [doctorScheduleQuery.data?.appointments],
-  );
+  const appointments = useMemo(() => {
+    const list = doctorScheduleQuery.data?.appointments ?? [];
+    return list.map((appt) => {
+      const optimistic = optimisticStatusMap[appt.id];
+      return optimistic ? { ...appt, status: optimistic } : appt;
+    });
+  }, [doctorScheduleQuery.data?.appointments, optimisticStatusMap]);
 
   const grouped = useMemo(() => {
     const active = appointments.filter(
@@ -273,9 +307,9 @@ function DoctorAppointmentsPage() {
         }
       />
 
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl px-4 py-8 transition-opacity duration-300 sm:px-6 lg:px-8">
         {doctorScheduleQuery.isPending ? (
-          <div className="space-y-6">
+          <div className="space-y-6 transition-opacity duration-300">
             <Skeleton className="h-10 w-80 max-w-full" />
             <div className="grid gap-4 md:grid-cols-2">
               {[1, 2, 3, 4].map((i) => (
@@ -284,7 +318,7 @@ function DoctorAppointmentsPage() {
             </div>
           </div>
         ) : doctorScheduleQuery.isError ? (
-          <Card className="border-destructive/40 bg-destructive/10 p-8 text-center">
+          <Card className="border-destructive/40 bg-destructive/10 p-8 text-center animate-in fade-in duration-300">
             <h2 className="text-lg font-bold text-destructive">
               No pudimos cargar la agenda de pacientes
             </h2>
@@ -300,7 +334,7 @@ function DoctorAppointmentsPage() {
             </Button>
           </Card>
         ) : !doctorInfo ? (
-          <Card className="shadow-none">
+          <Card className="shadow-none animate-in fade-in duration-300">
             <CardContent className="py-12 text-center">
               <Stethoscope className="mx-auto size-12 text-muted-foreground" />
               <h2 className="mt-4 text-xl font-bold">Perfil médico pendiente de vinculación</h2>
@@ -311,9 +345,9 @@ function DoctorAppointmentsPage() {
             </CardContent>
           </Card>
         ) : (
-          <>
+          <div className="animate-in fade-in duration-300">
             <div className="mb-6 grid gap-4 sm:grid-cols-3">
-              <Card className="border-border/80 shadow-xs">
+              <Card className="border-border/80 shadow-xs transition-all duration-300">
                 <CardContent className="flex items-center justify-between p-4 sm:p-5">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -329,7 +363,7 @@ function DoctorAppointmentsPage() {
                 </CardContent>
               </Card>
 
-              <Card className="border-border/80 shadow-xs">
+              <Card className="border-border/80 shadow-xs transition-all duration-300">
                 <CardContent className="flex items-center justify-between p-4 sm:p-5">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -345,7 +379,7 @@ function DoctorAppointmentsPage() {
                 </CardContent>
               </Card>
 
-              <Card className="border-border/80 shadow-xs">
+              <Card className="border-border/80 shadow-xs transition-all duration-300">
                 <CardContent className="flex items-center justify-between p-4 sm:p-5">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -390,9 +424,13 @@ function DoctorAppointmentsPage() {
               {(["active", "completed", "cancelled", "all"] as const).map((tabKey) => {
                 const list = grouped[tabKey];
                 return (
-                  <TabsContent key={tabKey} value={tabKey}>
+                  <TabsContent
+                    key={tabKey}
+                    value={tabKey}
+                    className="transition-all duration-300 ease-in-out animate-in fade-in-50 slide-in-from-bottom-2"
+                  >
                     {list.length === 0 ? (
-                      <div className="rounded-lg border border-dashed border-border py-16 text-center">
+                      <div className="rounded-lg border border-dashed border-border py-16 text-center animate-in fade-in-50 duration-300">
                         <CalendarX2 className="mx-auto size-12 text-muted-foreground" />
                         <h3 className="mt-4 text-lg font-bold">
                           No hay citas en esta categoría
@@ -404,10 +442,11 @@ function DoctorAppointmentsPage() {
                       </div>
                     ) : (
                       <div className="grid gap-4 md:grid-cols-2">
-                        {list.map((appt) => (
+                        {list.map((appt, index) => (
                           <DoctorAppointmentCard
                             key={appt.id}
                             appointment={appt}
+                            index={index}
                             isUpdating={
                               updateStatusMutation.isPending &&
                               updateStatusMutation.variables?.appointment.id === appt.id
@@ -427,7 +466,7 @@ function DoctorAppointmentsPage() {
                 );
               })}
             </Tabs>
-          </>
+          </div>
         )}
       </div>
 
@@ -478,11 +517,13 @@ function DoctorAppointmentsPage() {
 
 function DoctorAppointmentCard({
   appointment,
+  index = 0,
   isUpdating,
   onMarkAttended,
   onRequestCancel,
 }: {
   appointment: DoctorAppointmentView;
+  index?: number;
   isUpdating: boolean;
   onMarkAttended: () => void;
   onRequestCancel: () => void;
@@ -509,7 +550,10 @@ function DoctorAppointmentCard({
           };
 
   return (
-    <article className="flex flex-col justify-between rounded-lg border border-border bg-card p-5 text-card-foreground shadow-xs sm:p-6">
+    <article
+      style={{ animationDelay: `${Math.min(index * 60, 360)}ms` }}
+      className="flex flex-col justify-between rounded-lg border border-border bg-card p-5 text-card-foreground shadow-xs transition-all duration-300 ease-in-out animate-in fade-in-50 slide-in-from-bottom-2 fill-mode-both hover:border-primary/30 hover:shadow-clinical sm:p-6"
+    >
       <div>
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-start gap-3">

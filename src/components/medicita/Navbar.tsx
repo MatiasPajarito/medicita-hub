@@ -15,7 +15,8 @@ import { useState } from "react";
 import { MediCitaLogo } from "@/components/common/MediCitaLogo";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useUserRole } from "@/hooks/useUserRole";
+import { Skeleton } from "@/components/ui/skeleton";
+import { clearCachedRoleData, useUserRole } from "@/hooks/useUserRole";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 
@@ -52,7 +53,7 @@ function HeaderLogo() {
 
 export function Navbar() {
   const [open, setOpen] = useState(false);
-  const { signedIn, isDoctor, doctorDisplayName } = useUserRole();
+  const { signedIn, isDoctor, doctorDisplayName, loading, isAuthReady } = useUserRole();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -60,6 +61,7 @@ export function Navbar() {
   const activeNavItems = isDoctor ? doctorNavItems : patientNavItems;
 
   async function signOut() {
+    clearCachedRoleData();
     await queryClient.cancelQueries();
     queryClient.clear();
     await supabase.auth.signOut();
@@ -71,10 +73,10 @@ export function Navbar() {
       <div className="mx-auto flex h-17 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <div className="flex items-center gap-3">
           <HeaderLogo />
-          {isDoctor && (
+          {isAuthReady && isDoctor && (
             <Badge
               variant="secondary"
-              className="hidden border-primary/25 bg-clinical-soft text-xs font-bold text-primary sm:inline-flex"
+              className="hidden border-primary/25 bg-clinical-soft text-xs font-bold text-primary transition-opacity duration-300 sm:inline-flex"
             >
               Médico
             </Badge>
@@ -82,25 +84,41 @@ export function Navbar() {
         </div>
 
         <nav className="hidden items-center gap-1 lg:flex" aria-label="Navegación principal">
-          {activeNavItems.map(({ to, label }) => (
-            <Link
-              key={to}
-              to={to}
-              className={cn(
-                "rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                pathname === to
-                  ? "bg-accent text-primary font-semibold"
-                  : "text-muted-foreground hover:bg-accent hover:text-foreground",
-              )}
-            >
-              {label}
-            </Link>
-          ))}
+          {loading || !isAuthReady ? (
+            <div className="flex items-center gap-2 transition-opacity duration-300">
+              <Skeleton className="h-9 w-16 rounded-md" />
+              <Skeleton className="h-9 w-28 rounded-md" />
+              <Skeleton className="h-9 w-28 rounded-md" />
+            </div>
+          ) : (
+            activeNavItems.map(({ to, label }) => (
+              <Link
+                key={to}
+                to={to}
+                className={cn(
+                  "rounded-md px-3 py-2 text-sm font-medium transition-all duration-200",
+                  pathname === to
+                    ? "bg-accent text-primary font-semibold"
+                    : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                )}
+              >
+                {label}
+              </Link>
+            ))
+          )}
         </nav>
 
-        <div className="hidden items-center gap-2 sm:flex">
-          {signedIn ? (
-            <>
+        <div className="hidden min-w-[180px] items-center justify-end gap-2 sm:flex">
+          {loading || !isAuthReady ? (
+            <div
+              aria-label="Verificando sesión"
+              className="flex items-center gap-2 transition-opacity duration-300"
+            >
+              <Skeleton className="h-9 w-36 rounded-md" />
+              <Skeleton className="size-9 rounded-md" />
+            </div>
+          ) : signedIn ? (
+            <div className="flex items-center gap-2 animate-in fade-in duration-200">
               <Button asChild className="gap-2">
                 <Link to="/perfil">
                   {isDoctor ? (
@@ -128,9 +146,9 @@ export function Navbar() {
               >
                 <LogOut />
               </Button>
-            </>
+            </div>
           ) : (
-            <>
+            <div className="flex items-center gap-2 animate-in fade-in duration-200">
               <Button asChild variant="ghost">
                 <Link to="/acceso" search={{ redirect: "/", mode: "login" }}>
                   Iniciar sesión
@@ -141,7 +159,7 @@ export function Navbar() {
                   Crear cuenta
                 </Link>
               </Button>
-            </>
+            </div>
           )}
         </div>
 
@@ -157,7 +175,7 @@ export function Navbar() {
       </div>
 
       {open && (
-        <div className="border-t border-border bg-background px-4 py-3 sm:hidden">
+        <div className="border-t border-border bg-background px-4 py-3 animate-in fade-in slide-in-from-top-2 duration-200 sm:hidden">
           <nav className="grid gap-1" aria-label="Navegación móvil">
             {activeNavItems.map(({ to, label, icon: Icon }) => (
               <Link
@@ -165,7 +183,7 @@ export function Navbar() {
                 to={to}
                 onClick={() => setOpen(false)}
                 className={cn(
-                  "flex items-center gap-3 rounded-md px-3 py-3 text-sm font-medium hover:bg-accent",
+                  "flex items-center gap-3 rounded-md px-3 py-3 text-sm font-medium transition-colors hover:bg-accent",
                   pathname === to && "bg-accent text-primary font-semibold",
                 )}
               >
@@ -174,7 +192,11 @@ export function Navbar() {
               </Link>
             ))}
 
-            {signedIn ? (
+            {loading || !isAuthReady ? (
+              <div className="grid gap-2 pt-2 transition-opacity duration-300">
+                <Skeleton className="h-11 w-full rounded-md" />
+              </div>
+            ) : signedIn ? (
               <>
                 <Link
                   to="/perfil"
@@ -235,7 +257,7 @@ export function Navbar() {
 }
 
 export function MobileBottomNav() {
-  const { signedIn, isDoctor } = useUserRole();
+  const { signedIn, isDoctor, loading, isAuthReady } = useUserRole();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const activeNavItems = isDoctor ? doctorNavItems : patientNavItems;
 
@@ -254,7 +276,7 @@ export function MobileBottomNav() {
             key={to}
             to={to}
             className={cn(
-              "flex flex-col items-center justify-center gap-1 text-[11px] font-medium",
+              "flex flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors",
               active ? "text-primary font-semibold" : "text-muted-foreground",
             )}
           >
@@ -263,11 +285,16 @@ export function MobileBottomNav() {
           </Link>
         );
       })}
-      {signedIn ? (
+      {loading || !isAuthReady ? (
+        <div className="flex flex-col items-center justify-center gap-1">
+          <Skeleton className="size-5 rounded-full" />
+          <Skeleton className="h-2.5 w-10 rounded" />
+        </div>
+      ) : signedIn ? (
         <Link
           to="/perfil"
           className={cn(
-            "flex flex-col items-center justify-center gap-1 text-[11px] font-medium",
+            "flex flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors",
             pathname === "/perfil" ? "text-primary font-semibold" : "text-muted-foreground",
           )}
         >
@@ -279,7 +306,7 @@ export function MobileBottomNav() {
           to="/acceso"
           search={{ redirect: "/", mode: "login" }}
           className={cn(
-            "flex flex-col items-center justify-center gap-1 text-[11px] font-medium",
+            "flex flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors",
             pathname === "/acceso" ? "text-primary font-semibold" : "text-muted-foreground",
           )}
         >

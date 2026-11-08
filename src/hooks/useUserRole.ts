@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 
@@ -11,16 +11,72 @@ export interface DoctorData {
   photo_url?: string | null;
 }
 
-export interface UseUserRoleResult {
+export interface ResolvedUserRoleData {
   isDoctor: boolean;
   doctorData: DoctorData | null;
-  loading: boolean;
-  isLoading: boolean;
   signedIn: boolean;
   userId: string | null;
   email: string | null;
   doctorProfile: DoctorData | null;
   doctorDisplayName: string;
+}
+
+export interface UseUserRoleResult extends ResolvedUserRoleData {
+  loading: boolean;
+  isLoading: boolean;
+  isAuthReady: boolean;
+}
+
+const ROLE_CACHE_STORAGE_KEY = "medicita_auth_role_cache_v1";
+export const USER_ROLE_QUERY_KEY = ["user-role-state"] as const;
+
+const GUEST_ROLE_DATA: ResolvedUserRoleData = {
+  isDoctor: false,
+  doctorData: null,
+  signedIn: false,
+  userId: null,
+  email: null,
+  doctorProfile: null,
+  doctorDisplayName: "Portal Médico",
+};
+
+let memoryRoleCache: ResolvedUserRoleData | null = null;
+
+function readCachedRoleData(): ResolvedUserRoleData | undefined {
+  if (memoryRoleCache) return memoryRoleCache;
+  if (typeof window === "undefined") return undefined;
+  try {
+    const raw = window.sessionStorage.getItem(ROLE_CACHE_STORAGE_KEY);
+    if (!raw) return undefined;
+    const parsed = JSON.parse(raw) as ResolvedUserRoleData;
+    if (typeof parsed.signedIn === "boolean") {
+      memoryRoleCache = parsed;
+      return parsed;
+    }
+  } catch {
+    // Ignore storage read errors
+  }
+  return undefined;
+}
+
+function writeCachedRoleData(data: ResolvedUserRoleData) {
+  memoryRoleCache = data;
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.setItem(ROLE_CACHE_STORAGE_KEY, JSON.stringify(data));
+  } catch {
+    // Ignore storage write errors
+  }
+}
+
+export function clearCachedRoleData() {
+  memoryRoleCache = GUEST_ROLE_DATA;
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.removeItem(ROLE_CACHE_STORAGE_KEY);
+  } catch {
+    // Ignore storage errors
+  }
 }
 
 export function formatDoctorTitle(fullName?: string | null, email?: string | null): string {
@@ -50,20 +106,20 @@ export function formatShortDoctorBadgeName(fullName?: string | null): string {
   return `${title} ${shortName}`;
 }
 
-export async function fetchUserRoleData() {
-  const { data: authData, error: authError } = await supabase.auth.getUser();
-  const user = authError ? null : (authData.user ?? null);
+export async function fetchUserRoleData(): Promise<ResolvedUserRoleData> {
+  const { data: sessionData } = await supabase.auth.getSession();
+  let user = sessionData.session?.user ?? null;
 
   if (!user) {
-    return {
-      isDoctor: false,
-      doctorData: null as DoctorData | null,
-      signedIn: false,
-      userId: null as string | null,
-      email: null as string | null,
-      doctorProfile: null as DoctorData | null,
-      doctorDisplayName: "Portal Médico",
-    };
+    const { data: authData, error: authError } = await supabase.auth.getUser();
+    if (!authError && authData.user) {
+      user = authData.user;
+    }
+  }
+
+  if (!user) {
+    writeCachedRoleData(GUEST_ROLE_DATA);
+    return GUEST_ROLE_DATA;
   }
 
   const [rolesRes, doctorRes] = await Promise.all([
@@ -102,7 +158,7 @@ export async function fetchUserRoleData() {
         }
       : null;
 
-  return {
+  const result: ResolvedUserRoleData = {
     isDoctor,
     doctorData: resolvedDoctorData,
     signedIn: true,
@@ -111,43 +167,48 @@ export async function fetchUserRoleData() {
     doctorProfile: resolvedDoctorData,
     doctorDisplayName: formatShortDoctorBadgeName(resolvedDoctorData?.full_name ?? metadataName),
   };
+
+  writeCachedRoleData(result);
+  return result;
 }
 
 export function useUserRole(): UseUserRoleResult {
   const queryClient = useQueryClient();
-  const [authVersion, setAuthVersion] = useState(0);
 
   useEffect(() => {
-    const { data } = supabase.auth.onAuthStateChange(() => {
-      setAuthVersion((v) => v + 1);
-      void queryClient.invalidateQueries({ queryKey: ["user-role-state"] });
+    const { data } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT" || !session?.user) {
+        clearCachedRoleData();
+        queryClient.setQueryData<ResolvedUserRoleData>(USER_ROLE_QUERY_KEY, GUEST_ROLE_DATA);
+        return;
+      }
+      if (event === "SIGNED_IN" || event === "USER_UPDATED") {
+        void queryClient.invalidateQueries({ queryKey: USER_ROLE_QUERY_KEY });
+      }
     });
     return () => data.subscription.unsubscribe();
   }, [queryClient]);
 
+  const cachedInitial = readCachedRoleData();
+
   const query = useQuery({
-    queryKey: ["user-role-state", authVersion],
+    queryKey: USER_ROLE_QUERY_KEY,
     queryFn: fetchUserRoleData,
-    staleTime: 30_000,
+    ...(cachedInitial ? { initialData: cachedInitial } : {}),
+    placeholderData: (previousData) => previousData,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
-  if (!query.data) {
-    return {
-      isDoctor: false,
-      doctorData: null,
-      loading: query.isPending,
-      isLoading: query.isPending,
-      signedIn: false,
-      userId: null,
-      email: null,
-      doctorProfile: null,
-      doctorDisplayName: "Portal Médico",
-    };
-  }
+  const isLoading = query.isPending && !query.data;
+  const isAuthReady = !isLoading;
+  const resolved = query.data ?? GUEST_ROLE_DATA;
 
   return {
-    ...query.data,
-    loading: query.isPending,
-    isLoading: query.isPending,
+    ...resolved,
+    loading: isLoading,
+    isLoading,
+    isAuthReady,
   };
 }

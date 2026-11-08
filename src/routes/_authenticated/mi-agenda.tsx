@@ -104,7 +104,7 @@ function AgendaSkeleton() {
       <div
         role="status"
         aria-label="Cargando citas"
-        className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-8"
+        className="mx-auto max-w-7xl space-y-6 px-4 py-8 transition-opacity duration-300 sm:px-6 lg:px-8"
       >
         <Skeleton className="h-10 w-72 max-w-full" />
         <div className="grid gap-4 md:grid-cols-2">
@@ -123,7 +123,7 @@ function AgendaError({ error }: ErrorComponentProps) {
   return (
     <>
       <Heading />
-      <div role="alert" className="mx-auto max-w-7xl px-4 py-16 text-center">
+      <div role="alert" className="mx-auto max-w-7xl px-4 py-16 text-center animate-in fade-in duration-300">
         <h2 className="text-xl font-bold">No pudimos cargar tus citas</h2>
         <p className="mt-2 break-words text-muted-foreground">{error.message}</p>
         <Button
@@ -143,7 +143,7 @@ function AgendaError({ error }: ErrorComponentProps) {
 
 function EmptyAgenda({ history }: { history: boolean }) {
   return (
-    <div className="py-16 text-center">
+    <div className="py-16 text-center animate-in fade-in-50 slide-in-from-bottom-2 duration-300">
       <CalendarX2 className="mx-auto size-12 text-muted-foreground" />
       <h2 className="mt-4 text-xl font-bold">
         {history ? "Aún no tienes citas en tu historial" : "Aún no tienes citas agendadas"}
@@ -188,8 +188,10 @@ function MySchedule() {
   const { tab } = Route.useSearch();
   const navigate = Route.useNavigate();
   const queryClient = useQueryClient();
-  const { data } = useSuspenseQuery(patientAppointmentsQuery(user.id));
+  const queryOptions = patientAppointmentsQuery(user.id);
+  const { data } = useSuspenseQuery(queryOptions);
   const [selection, setSelection] = useState<AppointmentView | null>(null);
+  const [optimisticCancelledIds, setOptimisticCancelledIds] = useState<Record<string, boolean>>({});
   const [now, setNow] = useState(clinicNow);
 
   useEffect(() => {
@@ -198,25 +200,52 @@ function MySchedule() {
   }, []);
 
   const appointments = useMemo<AppointmentView[]>(
-    () => (data ?? []).map(toAppointmentView),
-    [data],
+    () =>
+      (data ?? []).map((raw) => {
+        const view = toAppointmentView(raw);
+        if (optimisticCancelledIds[view.id]) {
+          return { ...view, status: "cancelled" };
+        }
+        return view;
+      }),
+    [data, optimisticCancelledIds],
   );
 
   const { upcoming, history } = groupAppointments(appointments, now);
 
   const cancellation = useMutation({
     mutationFn: (appointment: AppointmentView) => cancelPatientAppointment(appointment, user.id),
-    onSuccess: (result) => {
-      queryClient.setQueryData<Appointment[]>(
-        patientAppointmentsQuery(user.id).queryKey,
-        (old) => old?.map((a) => (a.id === result.id ? { ...a, status: result.status } : a)),
+    onMutate: async (appointment) => {
+      await queryClient.cancelQueries({ queryKey: queryOptions.queryKey });
+      const previous = queryClient.getQueryData<Appointment[]>(queryOptions.queryKey);
+
+      setOptimisticCancelledIds((prev) => ({ ...prev, [appointment.id]: true }));
+      queryClient.setQueryData<Appointment[]>(queryOptions.queryKey, (old) =>
+        old?.map((a) => (a.id === appointment.id ? { ...a, status: "cancelled" } : a)),
       );
       setSelection(null);
+
+      return { previous, cancelledId: appointment.id };
+    },
+    onSuccess: (result) => {
+      queryClient.setQueryData<Appointment[]>(queryOptions.queryKey, (old) =>
+        old?.map((a) => (a.id === result.id ? { ...a, status: result.status } : a)),
+      );
       toast.success("Cita cancelada correctamente");
       void queryClient.invalidateQueries({ queryKey: ["appointments"] });
       void queryClient.invalidateQueries({ queryKey: ["booking-availability"] });
     },
-    onError: (error) => {
+    onError: (error, _variables, context) => {
+      if (context?.cancelledId) {
+        setOptimisticCancelledIds((prev) => {
+          const next = { ...prev };
+          delete next[context.cancelledId];
+          return next;
+        });
+      }
+      if (context?.previous) {
+        queryClient.setQueryData<Appointment[]>(queryOptions.queryKey, context.previous);
+      }
       console.error("Error al cancelar cita:", error);
       toast.error(error.message);
     },
@@ -225,7 +254,7 @@ function MySchedule() {
   return (
     <>
       <Heading />
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl px-4 py-8 transition-opacity duration-300 sm:px-6 lg:px-8">
         <Tabs
           value={tab}
           onValueChange={(value) => {
@@ -242,13 +271,17 @@ function MySchedule() {
               <span className="text-xs text-muted-foreground">{history.length}</span>
             </TabsTrigger>
           </TabsList>
-          <TabsContent value="upcoming">
+          <TabsContent
+            value="upcoming"
+            className="transition-all duration-300 ease-in-out animate-in fade-in-50 slide-in-from-bottom-2"
+          >
             {upcoming.length ? (
               <div className="grid gap-4 md:grid-cols-2">
-                {upcoming.map((a) => (
+                {upcoming.map((a, index) => (
                   <AppointmentCard
                     key={a.id}
                     appointment={a}
+                    index={index}
                     now={now}
                     onCancel={() => setSelection(a)}
                   />
@@ -258,11 +291,14 @@ function MySchedule() {
               <EmptyAgenda history={false} />
             )}
           </TabsContent>
-          <TabsContent value="history">
+          <TabsContent
+            value="history"
+            className="transition-all duration-300 ease-in-out animate-in fade-in-50 slide-in-from-bottom-2"
+          >
             {history.length ? (
               <div className="grid gap-4 md:grid-cols-2">
-                {history.map((a) => (
-                  <AppointmentCard key={a.id} appointment={a} now={now} />
+                {history.map((a, index) => (
+                  <AppointmentCard key={a.id} appointment={a} index={index} now={now} />
                 ))}
               </div>
             ) : (
@@ -306,10 +342,12 @@ function MySchedule() {
 
 function AppointmentCard({
   appointment,
+  index = 0,
   now,
   onCancel,
 }: {
   appointment: AppointmentView;
+  index?: number;
   now: Date;
   onCancel?: () => void;
 }) {
@@ -326,7 +364,10 @@ function AppointmentCard({
   const telemedicine = appointment.modality === "telemedicina";
 
   return (
-    <article className="min-w-0 rounded-lg border border-border bg-card p-5 text-card-foreground sm:p-6">
+    <article
+      style={{ animationDelay: `${Math.min(index * 60, 360)}ms` }}
+      className="min-w-0 rounded-lg border border-border bg-card p-5 text-card-foreground transition-all duration-300 ease-in-out animate-in fade-in-50 slide-in-from-bottom-2 fill-mode-both hover:border-primary/30 hover:shadow-clinical sm:p-6"
+    >
       <div className="flex items-start gap-3">
         <Avatar className="size-12 shrink-0">
           <AvatarFallback className="bg-clinical-soft font-semibold text-primary">
@@ -376,7 +417,7 @@ function AppointmentCard({
         <div className="mt-5 border-t border-border pt-4">
           <Button
             variant="outline"
-            className="w-full border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive sm:w-auto"
+            className="w-full border-destructive/30 text-destructive transition-colors hover:bg-destructive/10 hover:text-destructive sm:w-auto"
             onClick={onCancel}
           >
             <X />
