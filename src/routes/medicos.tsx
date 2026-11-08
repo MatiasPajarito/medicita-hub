@@ -1,5 +1,4 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import {
@@ -15,7 +14,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { DoctorFilterBar } from "@/components/medicita/doctor-filters";
-import { listDoctors } from "@/lib/clinical.functions";
 import { specialties as clinicalSpecialties } from "@/lib/clinical-schemas";
 import {
   filterAndSortDoctors,
@@ -23,6 +21,19 @@ import {
   getSpecialtyCounts,
   type DoctorSortOption,
 } from "@/lib/doctor-filter";
+import { supabase } from "@/lib/supabaseClient";
+
+interface RawDoctor {
+  id: string;
+  full_name: string;
+  specialty: string;
+  bio?: string | null;
+  license_number?: string | null;
+  price?: number | null;
+  consultation_fee?: number | null;
+  photo_url?: string | null;
+  is_active?: boolean;
+}
 
 export const Route = createFileRoute("/medicos")({
   validateSearch: (
@@ -72,16 +83,29 @@ const initials = (name: string) =>
     .join("")
     .toUpperCase();
 
+async function fetchDoctorsFromSupabase() {
+  const { data, error } = await supabase
+    .from("doctors")
+    .select("id, full_name, specialty, bio, license_number, price, photo_url, is_active")
+    .order("full_name", { ascending: true });
+
+  if (error) throw error;
+
+  return (data || []).map((doc: RawDoctor) => ({
+    ...doc,
+    consultation_fee: Number(doc.price || doc.consultation_fee || 0),
+  }));
+}
+
 function DoctorsDirectory() {
-  const fetchDoctors = useServerFn(listDoctors);
   const doctors = useQuery({
     queryKey: ["doctors"],
-    queryFn: () => fetchDoctors(),
+    queryFn: fetchDoctorsFromSupabase,
   });
+
   const searchParams = Route.useSearch();
   const navigate = useNavigate();
 
-  // Search & Filter state initialized from URL params
   const [searchTerm, setSearchTerm] = useState(searchParams.search ?? "");
   const [specialty, setSpecialty] = useState(searchParams.specialty ?? "all");
   const [maxFee, setMaxFee] = useState<number | undefined>(searchParams.maxPrice);
@@ -89,29 +113,25 @@ function DoctorsDirectory() {
 
   const rawDoctors = useMemo(() => doctors.data ?? [], [doctors.data]);
 
-  // Compute available specialties dynamically from active doctors, combined with standard list
   const availableSpecialties = useMemo(() => {
     const fromData = rawDoctors.map((d) => d.specialty).filter(Boolean);
     const combined = Array.from(new Set([...fromData, ...clinicalSpecialties]));
     return combined.sort((a, b) => a.localeCompare(b, "es", { sensitivity: "base" }));
   }, [rawDoctors]);
 
-  // Compute doctor count per specialty
   const specialtyCounts = useMemo(() => {
     return getSpecialtyCounts(rawDoctors);
   }, [rawDoctors]);
 
-  // Fee boundaries for slider
   const { minAvailableFee, maxAvailableFee } = useMemo(() => {
     if (rawDoctors.length === 0) return { minAvailableFee: 0, maxAvailableFee: 100000 };
-    const fees = rawDoctors.map((d) => d.consultation_fee);
+    const fees = rawDoctors.map((d) => Number(d.consultation_fee || d.price || 0));
     return {
       minAvailableFee: Math.min(...fees),
       maxAvailableFee: Math.max(...fees),
     };
   }, [rawDoctors]);
 
-  // Filtered and sorted doctors
   const filteredDoctors = useMemo(() => {
     return filterAndSortDoctors(rawDoctors, {
       searchTerm,
@@ -121,7 +141,6 @@ function DoctorsDirectory() {
     });
   }, [rawDoctors, searchTerm, specialty, maxFee, sortBy]);
 
-  // Clear all filters
   function handleResetFilters() {
     setSearchTerm("");
     setSpecialty("all");
@@ -134,7 +153,6 @@ function DoctorsDirectory() {
     });
   }
 
-  // Handle specialty pill click
   function handleSpecialtyChange(newSpecialty: string) {
     setSpecialty(newSpecialty);
     void navigate({
@@ -156,7 +174,6 @@ function DoctorsDirectory() {
       />
 
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        {/* Loading state */}
         {doctors.isLoading && (
           <div className="py-12 text-center">
             <div className="mx-auto size-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
@@ -166,7 +183,6 @@ function DoctorsDirectory() {
           </div>
         )}
 
-        {/* Error state */}
         {doctors.isError && (
           <Card className="border-destructive/40 bg-destructive/10 p-6 text-center">
             <p className="font-semibold text-destructive">
@@ -181,7 +197,6 @@ function DoctorsDirectory() {
           </Card>
         )}
 
-        {/* Loaded view with Filter Bar & Grid */}
         {doctors.isSuccess && (
           <>
             <DoctorFilterBar
@@ -202,7 +217,6 @@ function DoctorsDirectory() {
               totalDoctors={rawDoctors.length}
             />
 
-            {/* Empty state: No matching results */}
             {filteredDoctors.length === 0 && rawDoctors.length > 0 && (
               <Card className="border-dashed border-border/80 bg-surface-subtle p-8 text-center sm:p-12">
                 <SearchX className="mx-auto size-12 text-muted-foreground" />
@@ -227,7 +241,6 @@ function DoctorsDirectory() {
               </Card>
             )}
 
-            {/* Empty state: No doctors in database at all */}
             {rawDoctors.length === 0 && (
               <div className="py-20 text-center">
                 <Stethoscope className="mx-auto size-12 text-muted-foreground" />
@@ -238,7 +251,6 @@ function DoctorsDirectory() {
               </div>
             )}
 
-            {/* Doctor cards grid */}
             {filteredDoctors.length > 0 && (
               <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
                 {filteredDoctors.map((doctor) => (
@@ -246,8 +258,7 @@ function DoctorsDirectory() {
                     key={doctor.id}
                     className="flex flex-col overflow-hidden border-border/80 shadow-xs transition-all hover:shadow-clinical"
                   >
-                    {/* Header Image or Avatar */}
-                    <div className="relative aspect-[16/10] bg-clinical-soft">
+                    <div className="relative aspect-[16/10] bg-slate-900">
                       {doctor.photo_url ? (
                         <img
                           src={doctor.photo_url}
@@ -279,7 +290,6 @@ function DoctorsDirectory() {
                       </div>
                     </div>
 
-                    {/* Content */}
                     <CardContent className="flex flex-1 flex-col p-5">
                       <div className="flex items-center gap-2">
                         <h2 className="text-xl font-bold text-foreground">{doctor.full_name}</h2>
