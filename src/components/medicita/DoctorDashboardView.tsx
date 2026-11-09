@@ -18,7 +18,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatDoctorTitle, type DoctorData } from "@/hooks/useUserRole";
-import { clinicNow } from "@/lib/booking";
 import { supabase } from "@/lib/supabase";
 
 export interface DoctorDashboardViewProps {
@@ -39,11 +38,18 @@ interface DashboardAppointmentItem {
 const VALID_ACTIVE_STATUSES = ["confirmed", "confirmada", "pending", "scheduled"];
 
 export function DoctorDashboardView({ doctorData, email }: DoctorDashboardViewProps) {
-  const now = clinicNow();
-  const clinicTodayStr = format(now, "yyyy-MM-dd");
-  const isoTodayStr = new Date().toISOString().split("T")[0] ?? clinicTodayStr;
-  const todayStr = clinicTodayStr <= isoTodayStr ? clinicTodayStr : isoTodayStr;
-  const in7DaysStr = format(addDays(parseISO(isoTodayStr), 7), "yyyy-MM-dd");
+  const now = new Date();
+  const todayStr = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, "0"),
+    String(now.getDate()).padStart(2, "0"),
+  ].join("-");
+  const in7Days = addDays(parseISO(todayStr), 7);
+  const in7DaysStr = [
+    in7Days.getFullYear(),
+    String(in7Days.getMonth() + 1).padStart(2, "0"),
+    String(in7Days.getDate()).padStart(2, "0"),
+  ].join("-");
   const doctorTitle = formatDoctorTitle(doctorData?.full_name, email);
 
   const metricsQuery = useQuery({
@@ -149,9 +155,7 @@ export function DoctorDashboardView({ doctorData, email }: DoctorDashboardViewPr
       const activeAppts = rawAppts.filter((a) =>
         VALID_ACTIVE_STATUSES.includes(a.status.toLowerCase()),
       );
-      const todayCount = activeAppts.filter(
-        (a) => a.appointment_date === clinicTodayStr || a.appointment_date === isoTodayStr,
-      ).length;
+      const todayCount = activeAppts.filter((a) => a.appointment_date === todayStr).length;
       const weekCount = activeAppts.length;
       const hasAvailableSchedule =
         (scheduleRes.data ?? []).some((s) => s.is_available) || isDoctorActive;
