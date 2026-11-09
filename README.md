@@ -2,7 +2,7 @@
 
 Sistema web integral para la reserva de horas médicas presenciales y por telemedicina, gestión de fichas clínicas y administración de disponibilidad horaria profesional.
 
-- **Despliegue en producción:** [https://medicita-hub.vercel.app](https://medicita-hub.vercel.app)
+- **Despliegue en producción:** [https://medicita-hub.pages.dev/](medicita-hub.pages.dev/)
 - **Seguimiento del proyecto:** GitHub Projects (Metodología Ágil / MoSCoW)
 
 ---
