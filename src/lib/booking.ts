@@ -28,6 +28,26 @@ export type PublicDoctor = {
 
 export type BusySlot = { appointment_date: string; start_time: string; end_time: string };
 
+export const occupiedStatuses = ["confirmed", "pending", "scheduled", "confirmada"] as const;
+
+export function bookingErrorMessage(error: unknown): string {
+  const info = error && typeof error === "object" ? error as { code?: unknown; message?: unknown } : {};
+  const message = typeof info.message === "string" ? info.message : "";
+  if (info.code === "23P01" || info.code === "23505" || /exclusion constraint/i.test(message)) {
+    return "Este bloque horario acaba de ser reservado por otro paciente. Por favor selecciona otro horario.";
+  }
+  if (info.code === "42501") return "No tienes permiso para agendar esta cita. Vuelve a iniciar sesión.";
+  return message || "No pudimos confirmar la reserva. Inténtalo nuevamente.";
+}
+
+export function bookingDaySlots(rule: DayRule | undefined, dateKey: string, busy: BusySlot[], now: Date): Slot[] {
+  return generateSlots(rule, parseISO(dateKey), now).map((slot) =>
+    slot.available && isSlotOccupied(dateKey, slot.time, rule?.slot_duration_minutes ?? 30, busy)
+      ? { ...slot, available: false, reason: "ocupado" }
+      : slot,
+  );
+}
+
 export const shortWeekDays = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"] as const;
 
 export type WeekDayItem = {
@@ -100,7 +120,7 @@ export function defaultWeeklyRules(): DayRule[] {
 }
 
 export function availableDates(rules: DayRule[], busy: BusySlot[], from: string, now: Date) {
-  const effectiveRules = rules.length > 0 ? rules : defaultWeeklyRules();
+  const effectiveRules = rules;
   return Array.from({ length: 60 }, (_, i) => {
     const date = addDays(parseISO(from), i);
     const key = format(date, "yyyy-MM-dd");
@@ -132,7 +152,6 @@ export function buildWeekStrip(
   now: Date = clinicNow(),
 ): WeekDayItem[] {
   const todayKey = format(now, "yyyy-MM-dd");
-  const hasActiveCustomRules = rules.some((r) => r.is_available);
 
   return Array.from({ length: 7 }, (_, i) => {
     const dateObj = addDays(parseISO(weekStart), i);
@@ -140,22 +159,9 @@ export function buildWeekStrip(
     const dayIdx = mondayIndex(dateObj);
     const isPast = dateKey < todayKey;
 
-    const customRule = hasActiveCustomRules
-      ? rules.find((r) => r.day_of_week === dayIdx)
-      : undefined;
-    const rule = customRule ?? defaultDay(dayIdx);
-    const duration = rule.slot_duration_minutes || 30;
-
-    let slots: Slot[] = [];
-    if (!isPast && rule.is_available) {
-      slots = generateSlots(rule, dateObj, now).filter(
-        (s) => s.available && !isSlotOccupied(dateKey, s.time, duration, busy),
-      );
-      // Fallback: if standard weekday schedule yielded no slots on a future date, generate 09:00-18:00 every 30m
-      if (slots.length === 0 && dateKey > todayKey && !busy.some((b) => b.appointment_date === dateKey)) {
-        slots = generateFallbackSlots(dateKey, busy, now, 30);
-      }
-    }
+    const rule = rules.find((r) => r.day_of_week === dayIdx);
+    const duration = rule?.slot_duration_minutes ?? 30;
+    const slots = bookingDaySlots(rule, dateKey, busy, now);
 
     return {
       date: dateKey,
@@ -164,7 +170,7 @@ export function buildWeekStrip(
       monthShort: format(dateObj, "MMM", { locale: es }).replace(".", ""),
       fullLabel: format(dateObj, "EEEE d 'de' MMMM", { locale: es }),
       isPast,
-      isAvailable: !isPast && slots.length > 0,
+      isAvailable: !isPast && slots.some((slot) => slot.available),
       slots,
       duration,
     };

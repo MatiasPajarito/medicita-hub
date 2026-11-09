@@ -6,6 +6,9 @@ import {
   getWeekMonday,
   matchesSpecialty,
   professionalSchema,
+  bookingDaySlots,
+  bookingErrorMessage,
+  occupiedStatuses,
 } from "./booking";
 import { defaultDay } from "./schedule";
 
@@ -41,10 +44,10 @@ describe("clinical bookings", () => {
     const days = availableDates([defaultDay(0)], [], "2026-11-08", new Date("2026-11-03T09:00:00"));
     expect(days[0]?.date).toBe("2026-11-09");
   });
-  test("weekly strip generates 7 days with fallback 30-minute slots when DB schedule is empty", () => {
+  test("weekly strip generates 7 days from saved 30-minute schedule rules", () => {
     const monday = getWeekMonday("2026-11-09");
     expect(monday).toBe("2026-11-09");
-    const strip = buildWeekStrip(monday, [], [], new Date("2026-11-07T12:00:00"));
+    const strip = buildWeekStrip(monday, [defaultDay(0)], [], new Date("2026-11-07T12:00:00"));
     expect(strip).toHaveLength(7);
     expect(strip[0]?.dayLabel).toBe("Lun");
     expect(strip[0]?.dayNumber).toBe("9");
@@ -58,6 +61,25 @@ describe("clinical bookings", () => {
     // Weekend days disabled by default
     expect(strip[5]?.isAvailable).toBe(false);
     expect(strip[6]?.isAvailable).toBe(false);
+  });
+  test("a missing saved schedule never offers fabricated hours", () => {
+    expect(buildWeekStrip("2026-11-09", [], [], new Date("2026-11-07T12:00:00")).every((day) => day.slots.length === 0)).toBe(true);
+  });
+  test("an overlapping occupied range disables both intersecting slots but not the adjacent slot", () => {
+    const slots = bookingDaySlots(defaultDay(0), "2026-11-09", [{ appointment_date: "2026-11-09", start_time: "09:15:00", end_time: "09:45:00" }], new Date("2026-11-07T12:00:00"));
+    expect(slots.slice(0, 3).map(({ time, available, reason }) => ({ time, available, reason }))).toEqual([
+      { time: "09:00", available: false, reason: "ocupado" },
+      { time: "09:30", available: false, reason: "ocupado" },
+      { time: "10:00", available: true, reason: undefined },
+    ]);
+  });
+  test("confirmed and pending block availability but cancelled does not", () => {
+    expect(occupiedStatuses.includes("confirmed")).toBe(true);
+    expect(occupiedStatuses.includes("pending")).toBe(true);
+    expect([...occupiedStatuses]).not.toContain("cancelled");
+  });
+  test("database exclusion conflicts are identified as a competing reservation", () => {
+    expect(bookingErrorMessage({ code: "23P01" })).toBe("Este bloque horario acaba de ser reservado por otro paciente. Por favor selecciona otro horario.");
   });
   test("fallback slot generator creates 30-minute slots from 09:00 to 18:00 excluding occupied slots", () => {
     const slots = generateFallbackSlots(
