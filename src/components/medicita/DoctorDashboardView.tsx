@@ -10,6 +10,7 @@ import {
   Clock3,
   MapPin,
   Stethoscope,
+  UserRound,
   Users,
   Video,
 } from "lucide-react";
@@ -17,8 +18,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatDoctorTitle, type DoctorData } from "@/hooks/useUserRole";
-import { activeStatuses } from "@/lib/appointments";
-import { clinicNow } from "@/lib/booking";
 import { supabase } from "@/lib/supabase";
 
 export interface DoctorDashboardViewProps {
@@ -26,50 +25,138 @@ export interface DoctorDashboardViewProps {
   email?: string | null | undefined;
 }
 
+interface DashboardAppointmentItem {
+  id: string;
+  appointment_date: string;
+  start_time: string;
+  end_time: string;
+  modality: string;
+  status: string;
+  patientName: string;
+}
+
+const VALID_ACTIVE_STATUSES = ["confirmed", "confirmada", "pending", "scheduled"];
+
 export function DoctorDashboardView({ doctorData, email }: DoctorDashboardViewProps) {
-  const now = clinicNow();
-  const today = format(now, "yyyy-MM-dd");
-  const weekEnd = format(addDays(now, 7), "yyyy-MM-dd");
+  const now = new Date();
+  const todayStr = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, "0"),
+    String(now.getDate()).padStart(2, "0"),
+  ].join("-");
+  const in7Days = addDays(parseISO(todayStr), 7);
+  const in7DaysStr = [
+    in7Days.getFullYear(),
+    String(in7Days.getMonth() + 1).padStart(2, "0"),
+    String(in7Days.getDate()).padStart(2, "0"),
+  ].join("-");
   const doctorTitle = formatDoctorTitle(doctorData?.full_name, email);
 
   const metricsQuery = useQuery({
-    queryKey: ["doctor-dashboard-metrics", doctorData?.id, today],
+    queryKey: ["doctor-dashboard-metrics", doctorData?.id, todayStr],
     queryFn: async () => {
-      if (!doctorData?.id) {
+      const { data: authData } = await supabase.auth.getUser();
+      const userId = authData.user?.id ?? null;
+
+      let resolvedDoctorId = doctorData?.id ?? null;
+      let isDoctorActive = doctorData?.is_active !== false;
+
+      if (userId) {
+        const { data: dbDoctor } = await supabase
+          .from("doctors")
+          .select("id, is_active")
+          .eq("user_id", userId)
+          .maybeSingle();
+
+        if (dbDoctor?.id) {
+          resolvedDoctorId = dbDoctor.id;
+          isDoctorActive = dbDoctor.is_active !== false;
+        }
+      }
+
+      const candidateDoctorIds = Array.from(
+        new Set([resolvedDoctorId, doctorData?.id, userId].filter((id): id is string => Boolean(id))),
+      );
+
+      if (candidateDoctorIds.length === 0) {
         return {
           todayCount: 0,
           weekCount: 0,
           scheduleActive: true,
-          upcomingPreview: [] as Array<{
-            id: string;
-            appointment_date: string;
-            start_time: string;
-            end_time: string;
-            modality: string;
-            status: string;
-          }>,
+          upcomingPreview: [] as DashboardAppointmentItem[],
         };
       }
 
-      const [apptsRes, scheduleRes] = await Promise.all([
+      const [joinedApptsRes, scheduleRes] = await Promise.all([
         supabase
           .from("appointments")
-          .select("id, appointment_date, start_time, end_time, modality, status")
-          .eq("doctor_id", doctorData.id)
-          .gte("appointment_date", today)
-          .lte("appointment_date", weekEnd)
+          .select(
+            "id, appointment_date, start_time, end_time, modality, status, patients(full_name)",
+          )
+          .in("doctor_id", candidateDoctorIds)
+          .in("status", VALID_ACTIVE_STATUSES)
+          .gte("appointment_date", todayStr)
+          .lte("appointment_date", in7DaysStr)
           .order("appointment_date", { ascending: true })
           .order("start_time", { ascending: true }),
         supabase
           .from("doctor_schedules")
           .select("id, is_available")
-          .eq("doctor_id", doctorData.id),
+          .in("doctor_id", candidateDoctorIds),
       ]);
 
-      const activeAppts = (apptsRes.data ?? []).filter((a) => activeStatuses.includes(a.status));
-      const todayCount = activeAppts.filter((a) => a.appointment_date === today).length;
+      let rawAppts: Array<{
+        id: string;
+        appointment_date: string;
+        start_time: string;
+        end_time: string;
+        modality: string;
+        status: string;
+        patientName: string;
+      }> = [];
+
+      if (!joinedApptsRes.error && joinedApptsRes.data) {
+        rawAppts = joinedApptsRes.data.map((row) => {
+          const rawPatient = Array.isArray(row.patients)
+            ? (row.patients[0] ?? null)
+            : row.patients;
+          return {
+            id: row.id,
+            appointment_date: row.appointment_date,
+            start_time: row.start_time,
+            end_time: row.end_time,
+            modality: row.modality,
+            status: row.status,
+            patientName: rawPatient?.full_name?.trim() || "Paciente confirmado",
+          };
+        });
+      } else {
+        const basicApptsRes = await supabase
+          .from("appointments")
+          .select("id, appointment_date, start_time, end_time, modality, status")
+          .in("doctor_id", candidateDoctorIds)
+          .in("status", VALID_ACTIVE_STATUSES)
+          .gte("appointment_date", todayStr)
+          .lte("appointment_date", in7DaysStr)
+          .order("appointment_date", { ascending: true })
+          .order("start_time", { ascending: true });
+
+        rawAppts = (basicApptsRes.data ?? []).map((row) => ({
+          id: row.id,
+          appointment_date: row.appointment_date,
+          start_time: row.start_time,
+          end_time: row.end_time,
+          modality: row.modality,
+          status: row.status,
+          patientName: "Paciente confirmado",
+        }));
+      }
+
+      const activeAppts = rawAppts.filter((a) =>
+        VALID_ACTIVE_STATUSES.includes(a.status.toLowerCase()),
+      );
+      const todayCount = activeAppts.filter((a) => a.appointment_date === todayStr).length;
       const weekCount = activeAppts.length;
-      const isDoctorActive = doctorData.is_active !== false;
       const hasAvailableSchedule =
         (scheduleRes.data ?? []).some((s) => s.is_available) || isDoctorActive;
 
@@ -77,7 +164,7 @@ export function DoctorDashboardView({ doctorData, email }: DoctorDashboardViewPr
         todayCount,
         weekCount,
         scheduleActive: isDoctorActive && hasAvailableSchedule,
-        upcomingPreview: activeAppts.slice(0, 4),
+        upcomingPreview: activeAppts,
       };
     },
   });
@@ -271,19 +358,23 @@ export function DoctorDashboardView({ doctorData, email }: DoctorDashboardViewPr
             <div className="grid gap-3 sm:grid-cols-2">
               {upcomingPreview.map((item) => (
                 <Card key={item.id} className="border-border/80 bg-card shadow-xs">
-                  <CardContent className="flex items-center justify-between p-4 sm:p-5">
-                    <div className="space-y-1">
+                  <CardContent className="flex items-center justify-between gap-3 p-4 sm:p-5">
+                    <div className="min-w-0 space-y-1.5">
                       <p className="text-sm font-bold capitalize text-foreground">
                         {format(parseISO(item.appointment_date), "EEEE d 'de' MMMM", {
                           locale: es,
                         })}
                       </p>
-                      <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                        <Clock3 className="size-3.5 text-primary" />
-                        {item.start_time.slice(0, 5)} – {item.end_time.slice(0, 5)} hrs
+                      <p className="flex items-center gap-1.5 text-xs font-semibold text-primary">
+                        <Clock3 className="size-3.5 shrink-0 text-primary" />
+                        {item.start_time.slice(0, 5)} - {item.end_time.slice(0, 5)} hrs
+                      </p>
+                      <p className="flex items-center gap-1.5 truncate text-xs font-medium text-muted-foreground">
+                        <UserRound className="size-3.5 shrink-0 text-muted-foreground" />
+                        <span className="truncate">{item.patientName}</span>
                       </p>
                     </div>
-                    <Badge variant="outline" className="gap-1">
+                    <Badge variant="outline" className="shrink-0 gap-1">
                       {item.modality === "telemedicina" ? (
                         <Video className="size-3.5 text-primary" />
                       ) : (

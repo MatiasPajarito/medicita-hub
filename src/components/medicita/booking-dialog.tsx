@@ -472,7 +472,7 @@ function BookingPanel({
       onClose();
       await navigate({
         to: "/acceso",
-        search: { redirect: `/buscar-citas?doctor=${doctor.id}&date=${activeDay.date}`, mode: "login" },
+        search: { redirect: `/medicos?doctor=${doctor.id}&date=${activeDay.date}`, mode: "login" },
       });
       return;
     }
@@ -526,7 +526,7 @@ function BookingPanel({
         await navigate({
           to: "/acceso",
           search: {
-            redirect: `/buscar-citas?doctor=${doctor.id}&date=${activeDay.date}`,
+            redirect: `/medicos?doctor=${doctor.id}&date=${activeDay.date}`,
             mode: "login",
           },
         });
@@ -836,7 +836,7 @@ function BookingPanel({
               <Link
                 to="/acceso"
                 search={{
-                  redirect: `/buscar-citas?doctor=${doctor.id}&date=${activeDay?.date ?? today}`,
+                  redirect: `/medicos?doctor=${doctor.id}&date=${activeDay?.date ?? today}`,
                   mode: "login",
                 }}
                 className="font-semibold text-primary underline-offset-4 hover:underline"

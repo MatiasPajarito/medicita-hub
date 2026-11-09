@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import {
@@ -13,11 +13,13 @@ import {
   Baby,
   ShieldCheck,
 } from "lucide-react";
+import { BookingDialog } from "@/components/medicita/booking-dialog";
 import { PageHeading } from "@/components/medicita/page-heading";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { DoctorFilterBar } from "@/components/medicita/doctor-filters";
+import type { PublicDoctor } from "@/lib/booking";
 import { specialties as clinicalSpecialties } from "@/lib/clinical-schemas";
 import {
   filterAndSortDoctors,
@@ -42,13 +44,22 @@ export const Route = createFileRoute("/medicos")({
   validateSearch: (
     s: Record<string, unknown>,
   ): {
+    doctor?: string | undefined;
     specialty?: string | undefined;
     search?: string | undefined;
+    date?: string | undefined;
+    modality?: string | undefined;
     maxPrice?: number | undefined;
     sort?: DoctorSortOption | undefined;
   } => ({
+    doctor: typeof s["doctor"] === "string" ? s["doctor"] : undefined,
     specialty: typeof s["specialty"] === "string" ? s["specialty"] : undefined,
     search: typeof s["search"] === "string" ? s["search"] : undefined,
+    date:
+      typeof s["date"] === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s["date"])
+        ? s["date"]
+        : undefined,
+    modality: typeof s["modality"] === "string" ? s["modality"] : undefined,
     maxPrice:
       typeof s["maxPrice"] === "string" || typeof s["maxPrice"] === "number"
         ? Number(s["maxPrice"])
@@ -154,10 +165,32 @@ function DoctorsDirectory() {
 
   const [searchTerm, setSearchTerm] = useState(searchParams.search ?? "");
   const [specialty, setSpecialty] = useState(searchParams.specialty ?? "all");
+  const [date, setDate] = useState(searchParams.date ?? "");
+  const [modality, setModality] = useState(searchParams.modality ?? "todas");
   const [maxFee, setMaxFee] = useState<number | undefined>(searchParams.maxPrice);
   const [sortBy, setSortBy] = useState<DoctorSortOption>(searchParams.sort ?? "default");
+  const [selected, setSelected] = useState<PublicDoctor | null>(null);
+  const [dismissed, setDismissed] = useState(false);
 
   const rawDoctors = useMemo(() => doctors.data ?? [], [doctors.data]);
+
+  const bookingDoctor = useMemo<PublicDoctor | null>(() => {
+    if (selected) return selected;
+    if (!dismissed && searchParams.doctor) {
+      const found = rawDoctors.find((d) => d.id === searchParams.doctor);
+      if (found) {
+        return {
+          id: found.id,
+          full_name: found.full_name,
+          specialty: found.specialty,
+          bio: found.bio ?? "",
+          photo_url: null,
+          consultation_fee: found.consultation_fee,
+        };
+      }
+    }
+    return null;
+  }, [selected, dismissed, searchParams.doctor, rawDoctors]);
 
   const availableSpecialties = useMemo(() => {
     const fromData = rawDoctors.map((d) => d.specialty).filter(Boolean);
@@ -190,6 +223,8 @@ function DoctorsDirectory() {
   function handleResetFilters() {
     setSearchTerm("");
     setSpecialty("all");
+    setDate("");
+    setModality("todas");
     setMaxFee(undefined);
     setSortBy("default");
     void navigate({
@@ -358,20 +393,23 @@ function DoctorsDirectory() {
                           </div>
 
                           <Button
-                            asChild
+                            type="button"
                             size="sm"
+                            onClick={() => {
+                              setDismissed(false);
+                              setSelected({
+                                id: doctor.id,
+                                full_name: doctor.full_name,
+                                specialty: doctor.specialty,
+                                bio: doctor.bio ?? "",
+                                photo_url: null,
+                                consultation_fee: doctor.consultation_fee,
+                              });
+                            }}
                             className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-medium shrink-0"
                           >
-                            <Link
-                              to="/buscar-citas"
-                              search={{
-                                doctor: doctor.id,
-                                specialty: doctor.specialty,
-                              }}
-                            >
-                              <CalendarPlus className="size-4" />
-                              Agendar cita
-                            </Link>
+                            <CalendarPlus className="size-4" />
+                            Agendar cita
                           </Button>
                         </div>
                       </CardContent>
@@ -383,6 +421,16 @@ function DoctorsDirectory() {
           </>
         )}
       </div>
+
+      <BookingDialog
+        doctor={bookingDoctor}
+        initialDate={date || searchParams.date}
+        initialModality={modality !== "todas" ? modality : searchParams.modality}
+        onClose={() => {
+          setSelected(null);
+          setDismissed(true);
+        }}
+      />
     </>
   );
 }

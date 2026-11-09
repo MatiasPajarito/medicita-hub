@@ -6,7 +6,6 @@ import {
   Home,
   LogOut,
   Menu,
-  Search,
   Stethoscope,
   UserRound,
   X,
@@ -22,8 +21,7 @@ import { cn } from "@/lib/utils";
 
 const patientNavItems = [
   { to: "/" as const, label: "Inicio", mobileLabel: "Inicio", icon: Home },
-  { to: "/buscar-citas" as const, label: "Buscar citas", mobileLabel: "Buscar", icon: Search },
-  { to: "/medicos" as const, label: "Profesionales", mobileLabel: "Médicos", icon: Stethoscope },
+  { to: "/medicos" as const, label: "Profesionales", mobileLabel: "Profesionales", icon: Stethoscope },
   { to: "/mi-agenda" as const, label: "Mi agenda", mobileLabel: "Mis citas", icon: CalendarDays },
 ];
 
@@ -263,10 +261,7 @@ export function MobileBottomNav() {
 
   return (
     <nav
-      className={cn(
-        "fixed inset-x-0 bottom-0 z-40 grid h-16 border-t border-border bg-background/95 px-1 backdrop-blur sm:hidden",
-        isDoctor ? "grid-cols-4" : "grid-cols-5",
-      )}
+      className="fixed inset-x-0 bottom-0 z-40 grid h-16 grid-cols-4 border-t border-border bg-background/95 px-1 backdrop-blur sm:hidden"
       aria-label="Navegación inferior"
     >
       {activeNavItems.map(({ to, mobileLabel, icon: Icon }) => {

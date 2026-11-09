@@ -13,7 +13,6 @@ import {
 } from "lucide-react";
 import { MediCitaIcon } from "@/components/common/MediCitaLogo";
 import { DoctorDashboardView } from "@/components/medicita/DoctorDashboardView";
-import { QuickBooking } from "@/components/medicita/quick-booking";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -57,8 +56,8 @@ function HomePage() {
   return (
     <>
       <section className="border-b border-border bg-surface-subtle">
-        <div className="mx-auto grid max-w-7xl items-center gap-10 px-4 py-12 sm:px-6 lg:grid-cols-[1.08fr_.92fr] lg:px-8 lg:py-16">
-          <div>
+        <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-20">
+          <div className="max-w-3xl">
             <Badge className="mb-5 border-primary/20 bg-clinical-soft text-primary hover:bg-clinical-soft">
               Atención simple y segura
             </Badge>
@@ -69,15 +68,15 @@ function HomePage() {
               Encuentra al especialista que necesitas y agenda atención presencial o por
               videollamada, sin llamadas ni esperas.
             </p>
-            <div className="mt-7 flex flex-wrap gap-3">
-              <Button asChild size="lg">
-                <Link to="/buscar-citas">
-                  <Search />
-                  Buscar una cita
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Button asChild size="lg" className="h-12 gap-2 px-6 text-base font-bold shadow-clinical">
+                <Link to="/medicos">
+                  <Stethoscope className="size-5" />
+                  Ver profesionales disponibles
                 </Link>
               </Button>
             </div>
-            <div className="mt-7 flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
+            <div className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
               <span className="flex items-center gap-2">
                 <ShieldCheck className="size-4 text-success" />
                 Datos protegidos
@@ -88,8 +87,6 @@ function HomePage() {
               </span>
             </div>
           </div>
-
-          <QuickBooking />
         </div>
       </section>
 
@@ -100,7 +97,7 @@ function HomePage() {
             <h2 className="mt-1 text-2xl font-bold sm:text-3xl">Encuentra la atención adecuada</h2>
           </div>
           <Button asChild variant="ghost" className="hidden sm:inline-flex">
-            <Link to="/buscar-citas">
+            <Link to="/medicos">
               Ver todas
               <ChevronRight />
             </Link>
@@ -110,7 +107,7 @@ function HomePage() {
           {specialties.map(({ name, note, icon: Icon }) => (
             <Link
               key={name}
-              to="/buscar-citas"
+              to="/medicos"
               search={name === "Telemedicina" ? { modality: "telemedicina" } : { specialty: name }}
               className="group rounded-lg border border-border bg-card p-5 transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-clinical"
             >
@@ -223,9 +220,9 @@ function NextAppointmentSection({
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-3">
           <Button asChild size="lg">
-            <Link to="/buscar-citas">
+            <Link to="/medicos">
               <Search />
-              Buscar y agendar cita
+              Ver profesionales disponibles
             </Link>
           </Button>
           <Button asChild size="lg" variant="outline">
