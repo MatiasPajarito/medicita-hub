@@ -42,7 +42,7 @@ export function bookingErrorMessage(error: unknown): string {
 
 export function bookingDaySlots(rule: DayRule | undefined, dateKey: string, busy: BusySlot[], now: Date): Slot[] {
   return generateSlots(rule, parseISO(dateKey), now).map((slot) =>
-    slot.available && isSlotOccupied(dateKey, slot.time, rule?.slot_duration_minutes ?? 30, busy)
+    isSlotOccupied(dateKey, slot.time, rule?.slot_duration_minutes ?? 30, busy)
       ? { ...slot, available: false, reason: "ocupado" }
       : slot,
   );
@@ -75,16 +75,21 @@ export function isSlotOccupied(
   busy: BusySlot[],
 ): boolean {
   const [h = 0, m = 0] = slotTime.split(":").map(Number);
-  const slotEnd = format(addDays(parseISO(dateKey), 0).setHours(h, m + durationMinutes), "HH:mm");
+  const slotStartMin = h * 60 + m;
+  const slotEndMin = slotStartMin + durationMinutes;
   return busy.some((b) => {
     if (b.appointment_date !== dateKey) return false;
-    return b.start_time.slice(0, 5) < slotEnd && b.end_time.slice(0, 5) > slotTime;
+    const [bh1 = 0, bm1 = 0] = b.start_time.slice(0, 5).split(":").map(Number);
+    const [bh2 = 0, bm2 = 0] = (b.end_time ? b.end_time.slice(0, 5) : "").split(":").map(Number);
+    const bStartMin = bh1 * 60 + bm1;
+    const bEndMin = b.end_time ? bh2 * 60 + bm2 : bStartMin + durationMinutes;
+    return bStartMin < slotEndMin && bEndMin > slotStartMin;
   });
 }
 
 /**
  * Generates fallback 30-minute slots within standard doctor hours (09:00 to 18:00),
- * excluding occupied slots and past hours on the same day.
+ * marking occupied slots and past hours on the same day as unavailable.
  */
 export function generateFallbackSlots(
   dateKey: string,
@@ -92,7 +97,6 @@ export function generateFallbackSlots(
   now: Date = clinicNow(),
   durationMinutes = 30,
 ): Slot[] {
-  const dateObj = parseISO(dateKey);
   const todayKey = format(now, "yyyy-MM-dd");
   if (dateKey < todayKey) return [];
 
@@ -108,7 +112,11 @@ export function generateFallbackSlots(
     const timeStr = `${hh}:${mm}`;
     const isPastHour = sameDay && t <= nowMin;
     const occupied = isSlotOccupied(dateKey, timeStr, durationMinutes, busy);
-    if (!isPastHour && !occupied) {
+    if (occupied) {
+      slots.push({ time: timeStr, available: false, reason: "ocupado" });
+    } else if (isPastHour) {
+      slots.push({ time: timeStr, available: false, reason: "pasado" });
+    } else {
       slots.push({ time: timeStr, available: true });
     }
   }

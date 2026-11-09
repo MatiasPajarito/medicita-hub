@@ -1,7 +1,18 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { CalendarPlus, CheckCircle2, RotateCcw, SearchX, Stethoscope } from "lucide-react";
+import {
+  Activity,
+  Baby,
+  Brain,
+  CalendarPlus,
+  CheckCircle2,
+  HeartPulse,
+  RotateCcw,
+  SearchX,
+  ShieldCheck,
+  Stethoscope,
+} from "lucide-react";
 import { PageHeading } from "@/components/medicita/page-heading";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -70,6 +81,48 @@ const initials = (name: string) =>
     .map((w) => w[0])
     .join("")
     .toUpperCase();
+
+function getSpecialtyStyle(specialty: string) {
+  const norm = specialty.toLowerCase();
+  if (norm.includes("cardio")) {
+    return {
+      icon: HeartPulse,
+      badgeClass: "border-rose-500/30 bg-rose-500/10 text-rose-400",
+      avatarBg: "bg-rose-500/15 text-rose-400 border-rose-500/30",
+      areaLabel: "Área Cardiovascular",
+    };
+  }
+  if (norm.includes("trauma") || norm.includes("orto")) {
+    return {
+      icon: Activity,
+      badgeClass: "border-amber-500/30 bg-amber-500/10 text-amber-400",
+      avatarBg: "bg-amber-500/15 text-amber-400 border-amber-500/30",
+      areaLabel: "Aparato Locomotor",
+    };
+  }
+  if (norm.includes("mental") || norm.includes("psic") || norm.includes("psiq")) {
+    return {
+      icon: Brain,
+      badgeClass: "border-indigo-500/30 bg-indigo-500/10 text-indigo-400",
+      avatarBg: "bg-indigo-500/15 text-indigo-400 border-indigo-500/30",
+      areaLabel: "Salud Mental y Bienestar",
+    };
+  }
+  if (norm.includes("pedia")) {
+    return {
+      icon: Baby,
+      badgeClass: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400",
+      avatarBg: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
+      areaLabel: "Atención Pediátrica",
+    };
+  }
+  return {
+    icon: Stethoscope,
+    badgeClass: "border-sky-500/30 bg-sky-500/10 text-sky-400",
+    avatarBg: "bg-sky-500/15 text-sky-400 border-sky-500/30",
+    areaLabel: "Medicina General y Preventiva",
+  };
+}
 
 function SearchAppointments() {
   const doctors = useQuery({ queryKey: ["doctors"], queryFn: fetchPublicDoctors });
@@ -247,74 +300,99 @@ function SearchAppointments() {
             )}
 
             {/* Doctor list cards */}
-            <div className="grid gap-4">
-              {filteredDoctors.map((doctor) => (
-                <Card
-                  key={doctor.id}
-                  className="border-border/80 shadow-xs transition-all hover:border-primary/40 hover:shadow-clinical"
-                >
-                  <CardContent className="grid gap-5 p-5 sm:p-6 lg:grid-cols-[1fr_auto] lg:items-center">
-                    <div className="flex flex-col sm:flex-row gap-4">
-                      {doctor.photo_url ? (
-                        <img
-                          src={doctor.photo_url}
-                          alt={doctor.full_name}
-                          className="size-16 shrink-0 rounded-full object-cover border border-border"
-                          loading="lazy"
-                        />
-                      ) : (
-                        <span className="flex size-16 shrink-0 items-center justify-center rounded-full border border-primary/20 bg-clinical-soft text-base font-bold text-primary">
-                          {initials(doctor.full_name)}
-                        </span>
-                      )}
+            {filteredDoctors.length > 0 && (
+              <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3 auto-rows-fr">
+                {filteredDoctors.map((doctor) => {
+                  const style = getSpecialtyStyle(doctor.specialty);
+                  const Icon = style.icon;
 
-                      <div className="space-y-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h2 className="text-lg font-bold text-foreground">{doctor.full_name}</h2>
-                          <CheckCircle2 className="size-4 text-success" aria-label="Verificado" />
-                        </div>
-
-                        <div className="flex flex-wrap items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleSpecialtyChange(doctor.specialty)}
-                            className="inline-block"
-                          >
-                            <Badge
-                              variant="secondary"
-                              className="hover:bg-secondary/80 cursor-pointer"
+                  return (
+                    <Card
+                      key={doctor.id}
+                      className="flex flex-col h-full border border-border/80 bg-slate-900/40 hover:bg-slate-900/80 transition-all duration-200 hover:border-slate-700 shadow-sm rounded-xl overflow-hidden"
+                    >
+                      {/* Cabecera simétrica con altura uniforme */}
+                      <div className="p-5 pb-4 border-b border-border/50 bg-slate-950/40">
+                        <div className="flex items-start justify-between gap-3 min-h-[58px]">
+                          <div className="flex items-start gap-3 flex-1 min-w-0">
+                            <div
+                              className={`size-12 rounded-xl flex items-center justify-center font-bold text-sm border shrink-0 ${style.avatarBg}`}
                             >
-                              {doctor.specialty}
-                            </Badge>
-                          </button>
-                          <span className="text-sm font-semibold text-primary">
-                            {formatFeeCLP(doctor.consultation_fee)}{" "}
-                            <span className="text-xs font-normal text-muted-foreground">
-                              / consulta
-                            </span>
-                          </span>
+                              {initials(doctor.full_name)}
+                            </div>
+
+                            <div className="min-w-0 flex-1">
+                              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block truncate">
+                                {style.areaLabel}
+                              </span>
+                              <div className="h-[46px] flex items-center mt-0.5">
+                                <h2 className="text-base font-bold text-white tracking-tight leading-snug line-clamp-2">
+                                  {doctor.full_name}
+                                </h2>
+                                <CheckCircle2
+                                  className="size-4 shrink-0 text-emerald-400 ml-1.5 inline-block"
+                                  aria-label="Profesional verificado"
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          <Badge
+                            variant="outline"
+                            onClick={() => handleSpecialtyChange(doctor.specialty)}
+                            className={`gap-1.5 py-1 px-2.5 cursor-pointer shrink-0 transition-colors whitespace-nowrap ${style.badgeClass}`}
+                            title={`Filtrar por ${doctor.specialty}`}
+                          >
+                            <Icon className="size-3.5" />
+                            {doctor.specialty}
+                          </Badge>
+                        </div>
+                      </div>
+
+                      {/* Cuerpo de tarjeta nivelado */}
+                      <CardContent className="flex flex-1 flex-col p-5 pt-4">
+                        <div className="h-[66px] flex items-start">
+                          <p className="line-clamp-3 text-xs leading-relaxed text-slate-300">
+                            {doctor.bio ||
+                              "Profesional de la salud enfocado en la atención médica integral y personalizada."}
+                          </p>
                         </div>
 
-                        <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-muted-foreground">
-                          {doctor.bio}
-                        </p>
-                      </div>
-                    </div>
+                        <div className="h-6 flex items-center gap-2 text-xs text-slate-400 mt-2 mb-4">
+                          <ShieldCheck className="size-3.5 text-slate-500 shrink-0" />
+                          <span className="truncate">Registro: Acreditado SIS</span>
+                        </div>
 
-                    <div className="flex sm:justify-end">
-                      <Button
-                        onClick={() => setSelected(doctor)}
-                        size="lg"
-                        className="w-full sm:w-auto gap-2"
-                      >
-                        <CalendarPlus className="size-4" />
-                        Agendar cita
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                        {/* Pie con precio y botón de reserva alineados al fondo */}
+                        <div className="mt-auto pt-4 border-t border-border/60 flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">
+                              Valor consulta
+                            </p>
+                            <p className="text-lg font-extrabold text-white leading-tight">
+                              {formatFeeCLP(doctor.consultation_fee)}
+                            </p>
+                          </div>
+
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => {
+                              setDismissed(false);
+                              setSelected(doctor);
+                            }}
+                            className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-medium shrink-0"
+                          >
+                            <CalendarPlus className="size-4" />
+                            Agendar cita
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
           </>
         )}
       </div>

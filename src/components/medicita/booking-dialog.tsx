@@ -37,6 +37,7 @@ import {
   defaultWeeklyRules,
   generateFallbackSlots,
   getWeekMonday,
+  isSlotOccupied,
   type BusySlot,
   type PublicDoctor,
 } from "@/lib/booking";
@@ -93,8 +94,8 @@ function errorMessage(error: unknown): string {
     error && typeof error === "object" ? (error as { code?: unknown; message?: unknown }) : {};
   const code = typeof info.code === "string" ? info.code : "";
   const message = typeof info.message === "string" ? info.message : "";
-  if (code === "23P01" || /exclusion constraint/i.test(message)) {
-    return "Esa hora ya fue tomada por otro paciente. Elige otro horario.";
+  if (code === "23P01" || code === "23505" || /exclusion constraint/i.test(message)) {
+    return "Este bloque horario acaba de ser reservado por otro paciente. Por favor selecciona otro horario.";
   }
   if (code === "42501" || /row-level security/i.test(message)) {
     return "No tienes permiso para agendar esta cita. Vuelve a iniciar sesión e inténtalo de nuevo.";
@@ -195,7 +196,8 @@ function BookingPanel({
             .select("appointment_date, start_time, end_time, status")
             .eq("doctor_id", doctor.id)
             .gte("appointment_date", fromDate)
-            .lte("appointment_date", untilDate),
+            .lte("appointment_date", untilDate)
+            .in("status", ["confirmed", "pending", "scheduled", "confirmada"]),
           // La política de seguridad solo deja leer las citas propias; esta función devuelve las horas
           // ocupadas de todos los pacientes, así no se ofrecen horarios ya tomados.
           supabase.rpc("booked_clinical_slots", {
@@ -266,10 +268,66 @@ function BookingPanel({
     () => availability.data?.rules ?? defaultWeeklyRules(),
     [availability.data?.rules],
   );
-  const busySlots = useMemo(
-    () => availability.data?.busySlots ?? [],
-    [availability.data?.busySlots],
-  );
+
+  const selectedDateFormatted = selectedDate;
+
+  // Consulta directa de citas ocupadas para el doctor y la fecha seleccionada
+  const dayBusyQuery = useQuery({
+    queryKey: ["booking-day-busy", doctor.id, selectedDateFormatted],
+    queryFn: async () => {
+      const daySlots: BusySlot[] = [];
+      const [ { data: busyAppointments }, rpcRes ] = await Promise.all([
+        supabase
+          .from("appointments")
+          .select("start_time, end_time, status")
+          .eq("doctor_id", doctor.id)
+          .eq("appointment_date", selectedDateFormatted)
+          .in("status", ["confirmed", "pending", "scheduled", "confirmada"]),
+        supabase.rpc("booked_clinical_slots", {
+          _doctor_id: doctor.id,
+          _from: selectedDateFormatted,
+          _to: selectedDateFormatted,
+        }),
+      ]);
+
+      if (busyAppointments) {
+        for (const appt of busyAppointments) {
+          daySlots.push({
+            appointment_date: selectedDateFormatted,
+            start_time: appt.start_time,
+            end_time: appt.end_time,
+          });
+        }
+      }
+
+      if (!rpcRes.error && rpcRes.data) {
+        for (const item of rpcRes.data) {
+          daySlots.push({
+            appointment_date: item.appointment_date,
+            start_time: item.start_time,
+            end_time: item.end_time,
+          });
+        }
+      }
+
+      return daySlots;
+    },
+  });
+
+  const busySlots = useMemo(() => {
+    const merged: BusySlot[] = [];
+    const seen = new Set<string>();
+    const add = (item: BusySlot) => {
+      const key = `${item.appointment_date}|${item.start_time.slice(0, 5)}|${item.end_time.slice(0, 5)}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      merged.push(item);
+    };
+    for (const s of availability.data?.busySlots ?? []) add(s);
+    for (const s of dayBusyQuery.data ?? []) add(s);
+    return merged;
+  }, [availability.data?.busySlots, dayBusyQuery.data]);
+
   const modes = availability.data?.modalities ?? ["presencial", "telemedicina"];
 
   const weekDays = useMemo(
@@ -280,8 +338,8 @@ function BookingPanel({
   // Keep selectedDate valid within the active week when navigating weeks
   useEffect(() => {
     const inCurrentWeek = weekDays.find((d) => d.date === selectedDate);
-    if (!inCurrentWeek || !inCurrentWeek.isAvailable) {
-      const firstAvailable = weekDays.find((d) => d.isAvailable);
+    if (!inCurrentWeek || inCurrentWeek.isPast) {
+      const firstAvailable = weekDays.find((d) => d.isAvailable) ?? weekDays.find((d) => !d.isPast);
       if (firstAvailable && firstAvailable.date !== selectedDate) {
         setSelectedDate(firstAvailable.date);
         setSlot("");
@@ -294,12 +352,36 @@ function BookingPanel({
     [weekDays, selectedDate],
   );
 
-  // Ensure time slots are always populated for a valid selected day (fallback 09:00-18:00 every 30m)
+  // Ensure time slots are always populated for a valid selected day and occupied slots are marked available: false, reason: "ocupado"
   const displayedSlots = useMemo(() => {
     if (!activeDay || activeDay.isPast) return [];
-    if (activeDay.slots.length > 0) return activeDay.slots;
-    return generateFallbackSlots(activeDay.date, busySlots, now, activeDay.duration || 30);
+    const duration = activeDay.duration || 30;
+    const baseSlots =
+      activeDay.slots.length > 0
+        ? activeDay.slots
+        : generateFallbackSlots(activeDay.date, busySlots, now, duration);
+
+    return baseSlots.map((s) => {
+      if (isSlotOccupied(activeDay.date, s.time, duration, busySlots)) {
+        return { ...s, available: false, reason: "ocupado" as const };
+      }
+      return s;
+    });
   }, [activeDay, busySlots, now]);
+
+  const availableSlotsCount = useMemo(
+    () => displayedSlots.filter((s) => s.available).length,
+    [displayedSlots],
+  );
+
+  // If the currently selected slot becomes unavailable after a refetch, deselect it
+  useEffect(() => {
+    if (!slot) return;
+    const found = displayedSlots.find((s) => s.time === slot);
+    if (found && !found.available) {
+      setSlot("");
+    }
+  }, [displayedSlots, slot]);
 
   const weekHeaderLabel = useMemo(() => {
     const startObj = parseISO(weekStart);
@@ -322,6 +404,48 @@ function BookingPanel({
     setSlot("");
   }
 
+  async function hasConcurrentReservation(
+    dateStr: string,
+    slotTime: string,
+    durationMinutes: number,
+  ): Promise<boolean> {
+    const [{ data: busyAppointments }, rpcRes] = await Promise.all([
+      supabase
+        .from("appointments")
+        .select("start_time, end_time, status")
+        .eq("doctor_id", doctor.id)
+        .eq("appointment_date", dateStr)
+        .in("status", ["confirmed", "pending", "scheduled", "confirmada"]),
+      supabase.rpc("booked_clinical_slots", {
+        _doctor_id: doctor.id,
+        _from: dateStr,
+        _to: dateStr,
+      }),
+    ]);
+
+    const currentBusy: BusySlot[] = [];
+    if (busyAppointments) {
+      for (const appt of busyAppointments) {
+        currentBusy.push({
+          appointment_date: dateStr,
+          start_time: appt.start_time,
+          end_time: appt.end_time,
+        });
+      }
+    }
+    if (!rpcRes.error && rpcRes.data) {
+      for (const item of rpcRes.data) {
+        currentBusy.push({
+          appointment_date: item.appointment_date,
+          start_time: item.start_time,
+          end_time: item.end_time,
+        });
+      }
+    }
+
+    return isSlotOccupied(dateStr, slotTime, durationMinutes, currentBusy);
+  }
+
   // Paso 1 -> 2: exige sesión y pasa al pago (si la consulta es gratuita, confirma directo).
   async function startCheckout() {
     if (startingRef.current) return;
@@ -335,6 +459,12 @@ function BookingPanel({
 
   async function startCheckoutInner() {
     if (!activeDay || !slot) return;
+    const selectedSlotItem = displayedSlots.find((s) => s.time === slot);
+    if (!selectedSlotItem?.available) {
+      setSlot("");
+      return;
+    }
+
     const { data: authData } = await supabase.auth.getUser();
     const currentUser = user.data ?? authData.user;
     if (!currentUser) {
@@ -354,6 +484,19 @@ function BookingPanel({
       await navigate({ to: "/perfil" });
       return;
     }
+
+    const duration = activeDay.duration || 30;
+    const alreadyTaken = await hasConcurrentReservation(activeDay.date, slot, duration);
+    if (alreadyTaken) {
+      toast.error(
+        "Este bloque horario acaba de ser reservado por otro paciente. Por favor selecciona otro horario.",
+      );
+      setSlot("");
+      setStep("select");
+      await Promise.all([availability.refetch(), dayBusyQuery.refetch()]);
+      return;
+    }
+
     setLocked({
       doctorName: doctor.full_name,
       specialty: doctor.specialty,
@@ -407,6 +550,18 @@ function BookingPanel({
       const duration = activeDay.duration || 30;
       const end = format(addMinutes(parseISO(`${activeDay.date}T${slot}`), duration), "HH:mm");
 
+      // Validación Anti-Race Condition Pre-Inserción
+      const alreadyTaken = await hasConcurrentReservation(activeDay.date, slot, duration);
+      if (alreadyTaken) {
+        toast.error(
+          "Este bloque horario acaba de ser reservado por otro paciente. Por favor selecciona otro horario.",
+        );
+        setSlot("");
+        setStep("select");
+        await Promise.all([availability.refetch(), dayBusyQuery.refetch()]);
+        return;
+      }
+
       const { error } = await supabase.from("appointments").insert({
         doctor_id: doctor.id,
         patient_id: patient.id,
@@ -421,6 +576,7 @@ function BookingPanel({
 
       await queryClient.invalidateQueries({ queryKey: ["appointments"] });
       await queryClient.invalidateQueries({ queryKey: ["booking-availability"] });
+      await queryClient.invalidateQueries({ queryKey: ["booking-day-busy"] });
 
       toast.success("¡Cita agendada con éxito!");
       setReceipt(paid);
@@ -430,7 +586,7 @@ function BookingPanel({
       toast.error(errorMessage(error));
       setSlot("");
       setStep("select");
-      await availability.refetch();
+      await Promise.all([availability.refetch(), dayBusyQuery.refetch()]);
     } finally {
       savingRef.current = false;
       setSaving(false);
@@ -562,12 +718,12 @@ function BookingPanel({
             </Label>
             {displayedSlots.length > 0 && (
               <Badge variant="secondary" className="bg-clinical-soft text-primary font-semibold">
-                {displayedSlots.length} bloques
+                {availableSlotsCount} disponibles
               </Badge>
             )}
           </div>
 
-          {availability.isPending ? (
+          {availability.isPending || dayBusyQuery.isPending ? (
             <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
               {Array.from({ length: 8 }, (_, i) => (
                 <div
@@ -583,18 +739,32 @@ function BookingPanel({
               className="grid max-h-56 grid-cols-3 gap-2 overflow-y-auto p-0.5 sm:grid-cols-4"
             >
               {displayedSlots.map((s) => {
-                const isSelectedSlot = slot === s.time;
+                const isSelectedSlot = slot === s.time && s.available;
                 return (
                   <button
                     key={s.time}
                     type="button"
+                    disabled={!s.available}
                     aria-pressed={isSelectedSlot}
-                    onClick={() => setSlot(s.time)}
+                    aria-disabled={!s.available}
+                    title={
+                      !s.available
+                        ? s.reason === "ocupado"
+                          ? "Horario ocupado"
+                          : "Horario no disponible"
+                        : `Seleccionar ${s.time}`
+                    }
+                    onClick={() => {
+                      if (!s.available) return;
+                      setSlot(s.time);
+                    }}
                     className={cn(
-                      "flex h-10 items-center justify-center rounded-full border px-3 text-sm font-semibold transition-all cursor-pointer",
-                      isSelectedSlot
-                        ? "border-primary bg-primary text-primary-foreground shadow-clinical ring-2 ring-primary/30"
-                        : "border-primary/25 bg-clinical-soft/40 text-foreground hover:border-primary hover:bg-clinical-soft",
+                      "flex h-10 items-center justify-center rounded-full border px-3 text-sm font-semibold transition-all",
+                      !s.available
+                        ? "opacity-40 cursor-not-allowed line-through bg-slate-900 border-slate-800 text-slate-500"
+                        : isSelectedSlot
+                          ? "cursor-pointer border-primary bg-primary text-primary-foreground shadow-clinical ring-2 ring-primary/30"
+                          : "cursor-pointer border-primary/25 bg-clinical-soft/40 text-foreground hover:border-primary hover:bg-clinical-soft",
                     )}
                   >
                     {s.time}
