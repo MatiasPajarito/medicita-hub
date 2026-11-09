@@ -58,57 +58,60 @@ El proyecto se rige por la pauta oficial de 20 requerimientos priorizados bajo m
 ## 🎯 Entregables Completados
 
 ### Sprint 1 — Base de Datos, Autenticación y Disponibilidad
-- **[MUST-01] Registro y Perfil de Pacientes:** Autenticación de usuarios vía Supabase Auth, persistencia de perfil clínico (RUT, teléfono, antecedentes) y panel personal.
-- **[MUST-02] Directorio Clínico Profesional:** Catálogo médico dinámico con especialidad, arancel, registro SIS e identidad visual estandarizada por avatares clínicos.
-- **[MUST-03] Disponibilidad Horaria Médica:** Gestor de jornadas y bloques de atención semanal configurable por cada profesional de la salud.
+
+* **\[MUST-01\] Registro y Perfil de Pacientes:** Autenticación de usuarios vía Supabase Auth, persistencia de perfil clínico (RUT, teléfono, antecedentes) y panel personal.
+
+* **\[MUST-02\] Directorio Clínico Profesional:** Catálogo médico dinámico con especialidad, arancel, registro SIS e identidad visual estandarizada por avatares clínicos.
+
+* **\[MUST-03\] Disponibilidad Horaria Médica:** Gestor de jornadas y bloques de atención semanal configurable por cada profesional de la salud.
 
 ### Sprint 2 — Búsqueda Avanzada, Prevención de Solapamiento y Agenda
-- **[MUST-04] Búsqueda y Filtros Clínicos:** Búsqueda reactiva por profesional, selector por especialidades con conteo dinámico de especialistas y filtros por tarifa de consulta.
-- **[MUST-05] Reserva Atómica y Anti-Solapamiento:** Consulta en tiempo real de citas ocupadas en Supabase (`appointments`), deshabilitación visual de bloques reservados y validación anti-concurrencia previa a la inserción.
-- **[MUST-06] Gestión de Agenda de Paciente:** Visualización diferenciada en `Mi agenda` entre próximas consultas e historial de atenciones, con flujo seguro de cancelación de citas.
 
----
+* **\[MUST-04\] Búsqueda y Filtros Clínicos:** Búsqueda reactiva por profesional, selector por especialidades con conteo dinámico de especialistas y filtros por tarifa de consulta.
 
-## 🩺 Backlog de Requerimientos Priorizados (Sprints 3 y 4)
+* **\[MUST-05\] Reserva Atómica y Anti-Solapamiento:** Consulta en tiempo real de citas ocupadas en Supabase (`appointments`), deshabilitación visual de bloques reservados y validación anti-concurrencia previa a la inserción.
 
-### [MUST-07] Recordatorios automáticos por SMS y correo
-- **Descripción:** Notificaciones programadas enviadas al paciente 24 horas y 2 horas antes de la consulta.
-- **Criterios de aceptación:**
-  1. Integración con servicio transaccional (Resend / SendGrid / Twilio).
-  2. Despacho programado basado en la fecha y hora de la cita confirmada.
+* **\[MUST-06\] Gestión de Agenda de Paciente:** Visualización diferenciada en `Mi agenda` entre próximas consultas e historial de atenciones, con flujo seguro de cancelación de citas.
 
-### [MUST-08] Ficha clínica de paciente y registro de notas médicas
-- **Descripción:** Registro confidencial de anamnesis, diagnóstico e indicaciones médicas en la vista del doctor.
-- **Criterios de aceptación:**
-  1. Tabla `medical_notes` en Supabase asociada a `appointment_id` y `patient_id`.
-  2. Acceso restringido exclusivamente al médico tratante mediante políticas RLS.
-  3. Historial de notas ordenado cronológicamente por consulta.
+## 🩺 Backlog de Requerimientos Priorizados
 
-### [MUST-09] Módulo de videoconsulta integrado mediante Jitsi Meet
-- **Descripción:** Sala virtual de telemedicina incrustada para atenciones remotas.
-- **Criterios de aceptación:**
-  1. Generación de sala virtual única basada en el UUID de la cita.
-  2. Integración de Jitsi Meet con soporte de audio, cámara y chat.
-  3. Validación de acceso restringida a médico y paciente participantes.
+*(Los criterios de aceptación y detalles de implementación se gestionan directamente en los issues de GitHub Projects)*
 
-### [MUST-10] Panel administrativo con métricas de ocupación y no-shows
-- **Descripción:** Panel de control con indicadores de gestión clínica y reporte de inasistencias.
-- **Criterios de aceptación:**
-  1. Cálculo de tasa de ocupación por médico y especialidad.
-  2. Métricas de citas atendidas vs. canceladas en el período.
+### Sprint 3 — Comunicaciones, Ficha Médica y Telemedicina
 
-### [MUST-11] Cumplimiento normativo y consentimiento de datos de salud
-- **Descripción:** Adecuación legal al tratamiento de datos sensibles (Ley 20.584).
-- **Criterios de aceptación:**
-  1. Checkbox explícito de consentimiento informado en el registro.
-  2. Persistencia de la aceptación con timestamp en el registro del paciente.
+* **\[MUST-07\] Recordatorios Automáticos:** Despacho programado de notificaciones por correo y SMS 24 h y 2 h antes de la consulta.
 
-### [MUST-12] Monitoreo de disponibilidad continua (SLA $\ge$ 99%)
-- **Descripción:** Auditoría externa de disponibilidad del servicio en horario 06:00 a 22:00 hrs.
-- **Criterios de aceptación:**
-  1. Sonda de chequeo automatizada cada 5 minutos mediante monitor externo.
-  2. Registro formal del porcentaje de uptime mensual.
+* **\[MUST-08\] Ficha Clínica y Notas Médicas:** Registro confidencial de anamnesis, diagnóstico e indicaciones accesible solo por el médico tratante.
 
+* **\[MUST-09\] Videoconsulta Integrada:** Sala de telemedicina virtual incrustada vía Jitsi Meet con controles de audio, cámara y chat.
+
+### Sprint 4 — Reportería Administrativa, Normativa y SLA
+
+* **\[MUST-10\] Panel de Administración:** Métricas consolidadas de ocupación por médico/especialidad y tasa de inasistencias (*no-shows*).
+
+* **\[MUST-11\] Cumplimiento Normativo de Salud:** Consentimiento informado explícito en registro para tratamiento de datos clínicos (Ley 20.584).
+
+* **\[MUST-12\] Monitoreo de Disponibilidad Continua:** Sonda externa de chequeo automatizado cada 5 minutos garantizando SLA $\ge$ 99% (06:00 a 22:00 hrs).
+
+### Sprint 5 — Continuidad Operacional y Seguridad
+
+* **\[SHOULD-13\] Backups Diarios Automatizados:** Política y ejecución automatizada de respaldos de base de datos con retención mínima de 30 días.
+
+* **\[SHOULD-14\] Roles Diferenciados:** Control de acceso basado en roles (RBAC) expandido para perfiles de Recepción y Administración.
+
+* **\[SHOULD-15\] Cifrado y Auditoría de Fichas:** Cifrado de datos sensibles en reposo y registro de trazabilidad (`audit_logs`) ante accesos a fichas clínicas.
+
+### Sprints 6 y 7 — Calidad, Accesibilidad y Cierre
+
+* **\[SHOULD-16\] Reserva en 3 Pasos y Accesibilidad AA:** Verificación del flujo de agendamiento simplificado y auditoría WCAG 2.1 nivel AA.
+
+* **\[SHOULD-17\] Integración Proveedores Mensajería:** Configuración e integración de APIs dedicadas (Twilio / SendGrid) para comunicaciones masivas.
+
+* **\[COULD-18\] Pipeline CI con Análisis Estático:** Automatización de tests unitarios y control de calidad estática de código (SonarQube/Codacy) en PRs.
+
+* **\[COULD-19\] Tests E2E de Flujos Críticos:** Suite de pruebas automatizadas end-to-end (Playwright) para reserva, cancelación y videoconsulta.
+
+* **\[COULD-20\] Manuales de Usuario:** Documentación y guías paso a paso exportadas en PDF/Wiki para roles Paciente, Profesional y Administrador.
 ---
 
 ## 🚀 Ejecución en Entorno Local
