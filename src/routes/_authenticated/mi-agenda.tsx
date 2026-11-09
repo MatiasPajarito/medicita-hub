@@ -87,7 +87,7 @@ function Heading() {
       description="Revisa tus citas médicas agendadas y gestiona tus atenciones"
       action={
         <Button asChild>
-          <Link to="/buscar-citas">
+          <Link to="/medicos">
             <CalendarDays />
             Agendar nueva cita
           </Link>
@@ -154,7 +154,7 @@ function EmptyAgenda({ history }: { history: boolean }) {
           : "Encuentra al profesional que necesitas y reserva tu próxima atención médica."}
       </p>
       <Button asChild className="mt-6">
-        <Link to="/buscar-citas">
+        <Link to="/medicos">
           <CalendarDays />
           Buscar horas disponibles
         </Link>
