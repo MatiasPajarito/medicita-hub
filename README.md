@@ -40,7 +40,7 @@ El proyecto se rige por la pauta oficial de 20 requerimientos priorizados bajo m
 | **06** | Funcional | Reagendar y cancelar citas con política de aviso mínimo | Must | Sprint 2 | ✅ Completado |
 | **07** | Funcional | Recordatorios automáticos por SMS y email (24 h y 2 h antes) | Must | Sprint 3 | 🔄 En Proceso |
 | **08** | Funcional | Ficha de paciente con notas de consulta (accesible solo por profesional) | Must | Sprint 3 | 🔄 En Proceso |
-| **09** | Funcional | Videoconsulta integrada (WebRTC o Jitsi/Meet embed) | Must | Sprint 3 | 🔄 En Proceso |
+| **09** | Funcional | Videoconsulta integrada (WebRTC o Jitsi/Meet embed) | Must | Sprint 3 | ⏳ Pendiente |
 | **10** | Funcional | Panel de administración con reportes de ocupación y no-shows | Must | Sprint 4 | ⏳ Pendiente |
 | **11** | No funcional | Cumplimiento normativo local de protección de datos de salud | Must | Sprint 4 | ⏳ Pendiente |
 | **12** | No funcional | Disponibilidad $\ge$ 99% durante horario 06:00-22:00 | Must | Sprint 4 | ⏳ Pendiente |
