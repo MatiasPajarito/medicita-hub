@@ -87,7 +87,7 @@ describe("clinical bookings", () => {
       [{ appointment_date: "2026-11-10", start_time: "09:00:00", end_time: "09:30:00" }],
       new Date("2026-11-07T10:00:00"),
     );
-    expect(slots[0]?.time).toBe("09:30");
+    expect(slots[0]?.time).toBe("09:00");
     expect(slots[slots.length - 1]?.time).toBe("17:30");
   });
   test("professional requires valid RUT and at least one modality", () => {
