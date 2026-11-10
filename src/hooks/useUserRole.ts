@@ -13,6 +13,7 @@ export interface DoctorData {
 
 export interface ResolvedUserRoleData {
   isDoctor: boolean;
+  hasDoctorProfile: boolean;
   doctorData: DoctorData | null;
   signedIn: boolean;
   userId: string | null;
@@ -27,11 +28,12 @@ export interface UseUserRoleResult extends ResolvedUserRoleData {
   isAuthReady: boolean;
 }
 
-const ROLE_CACHE_STORAGE_KEY = "medicita_auth_role_cache_v1";
+const ROLE_CACHE_STORAGE_KEY = "medicita_auth_role_cache_v2";
 export const USER_ROLE_QUERY_KEY = ["user-role-state"] as const;
 
 const GUEST_ROLE_DATA: ResolvedUserRoleData = {
   isDoctor: false,
+  hasDoctorProfile: false,
   doctorData: null,
   signedIn: false,
   userId: null,
@@ -51,7 +53,11 @@ function readCachedRoleData(): ResolvedUserRoleData | undefined {
       window.sessionStorage.getItem(ROLE_CACHE_STORAGE_KEY);
     if (!raw) return undefined;
     const parsed = JSON.parse(raw) as ResolvedUserRoleData;
-    if (typeof parsed.signedIn === "boolean" && parsed.signedIn) {
+    if (
+      typeof parsed.signedIn === "boolean" &&
+      parsed.signedIn &&
+      typeof parsed.hasDoctorProfile === "boolean"
+    ) {
       memoryRoleCache = parsed;
       return parsed;
     }
@@ -143,7 +149,8 @@ export async function fetchUserRoleData(): Promise<ResolvedUserRoleData> {
 
   const roleList = (rolesRes.data ?? []).map((r) => r.role);
   const doctorRow = doctorRes.data ?? null;
-  const isDoctor = roleList.includes("doctor") || Boolean(doctorRow);
+  const hasDoctorProfile = Boolean(doctorRow?.id);
+  const isDoctor = roleList.includes("doctor") || hasDoctorProfile;
 
   const metadataName =
     typeof user.user_metadata?.["full_name"] === "string"
@@ -159,17 +166,11 @@ export async function fetchUserRoleData(): Promise<ResolvedUserRoleData> {
         consultation_fee: doctorRow.consultation_fee,
         photo_url: doctorRow.photo_url,
       }
-    : isDoctor
-      ? {
-          id: user.id,
-          full_name: metadataName ?? user.email?.split("@")[0] ?? "Profesional Médico",
-          specialty: "Medicina General",
-          is_active: true,
-        }
-      : null;
+    : null;
 
   const result: ResolvedUserRoleData = {
     isDoctor,
+    hasDoctorProfile,
     doctorData: resolvedDoctorData,
     signedIn: true,
     userId: user.id,

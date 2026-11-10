@@ -75,7 +75,7 @@ export function DoctorDashboardView({ doctorData, email }: DoctorDashboardViewPr
       }
 
       const candidateDoctorIds = Array.from(
-        new Set([resolvedDoctorId, doctorData?.id, userId].filter((id): id is string => Boolean(id))),
+        new Set([resolvedDoctorId, doctorData?.id].filter((id): id is string => Boolean(id))),
       );
 
       if (candidateDoctorIds.length === 0) {

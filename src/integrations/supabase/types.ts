@@ -65,6 +65,60 @@ export type Database = {
           },
         ]
       }
+      consultation_notes: {
+        Row: {
+          appointment_id: string
+          created_at: string
+          diagnosis: string
+          doctor_id: string
+          id: string
+          observations: string | null
+          patient_id: string
+          prescriptions: string | null
+          treatment_plan: string
+          updated_at: string
+        }
+        Insert: {
+          appointment_id: string
+          created_at?: string
+          diagnosis: string
+          doctor_id: string
+          id?: string
+          observations?: string | null
+          patient_id: string
+          prescriptions?: string | null
+          treatment_plan: string
+          updated_at?: string
+        }
+        Update: {
+          appointment_id?: string
+          created_at?: string
+          diagnosis?: string
+          doctor_id?: string
+          id?: string
+          observations?: string | null
+          patient_id?: string
+          prescriptions?: string | null
+          treatment_plan?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "consultation_notes_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: true
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "consultation_notes_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       doctor_schedules: {
         Row: {
           break_end: string | null

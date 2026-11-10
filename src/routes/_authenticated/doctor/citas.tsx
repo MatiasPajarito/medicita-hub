@@ -9,7 +9,9 @@ import {
   CalendarDays,
   CalendarX2,
   CheckCircle2,
+  ClipboardList,
   Clock3,
+  FileText,
   IdCard,
   Mail,
   MapPin,
@@ -19,6 +21,10 @@ import {
   Video,
 } from "lucide-react";
 import { toast } from "sonner";
+import {
+  ConsultationNoteDialog,
+  type ConsultationNoteRecord,
+} from "@/components/medicita/consultation-note-dialog";
 import { PageHeading } from "@/components/medicita/page-heading";
 import {
   AlertDialog,
@@ -35,6 +41,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useUserRole } from "@/hooks/useUserRole";
 import { normalizeAppointmentStatus } from "@/lib/appointments";
 import { supabase } from "@/lib/supabase";
 
@@ -52,6 +59,7 @@ export interface DoctorAppointmentView {
     rut_dni: string;
     email: string;
     phone: string;
+    user_id?: string | undefined;
   };
 }
 
@@ -75,7 +83,7 @@ export const Route = createFileRoute("/_authenticated/doctor/citas")({
       {
         name: "description",
         content:
-          "Gestiona las citas agendadas por tus pacientes, marca atenciones realizadas o cancela por fuerza mayor.",
+          "Gestiona las citas agendadas por tus pacientes, registra fichas clínicas de consulta o cancela por fuerza mayor.",
       },
       { property: "og:title", content: "Citas de Pacientes — Portal Médico MediCita" },
       {
@@ -104,18 +112,25 @@ function patientInitials(name: string) {
 type DoctorScheduleQueryData = {
   doctor: { id: string; full_name: string; specialty: string } | null;
   appointments: DoctorAppointmentView[];
+  notesByAppointmentId: Record<string, ConsultationNoteRecord>;
 };
 
 function DoctorAppointmentsPage() {
   const { user } = Route.useRouteContext();
+  const { doctorData } = useUserRole();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<"active" | "completed" | "cancelled" | "all">(
     "active",
   );
   const [cancelTarget, setCancelTarget] = useState<DoctorAppointmentView | null>(null);
+  const [noteModalState, setNoteModalState] = useState<{
+    appointment: DoctorAppointmentView;
+    readOnly: boolean;
+  } | null>(null);
   const [optimisticStatusMap, setOptimisticStatusMap] = useState<
     Record<string, "completed" | "cancelled">
   >({});
+  const [localNotesMap, setLocalNotesMap] = useState<Record<string, ConsultationNoteRecord>>({});
 
   const queryKey = useMemo(() => ["doctor-patient-appointments", user.id] as const, [user.id]);
 
@@ -129,16 +144,26 @@ function DoctorAppointmentsPage() {
         .maybeSingle();
 
       if (docError) throw new Error(docError.message);
-      if (!doctor) return { doctor: null, appointments: [] };
+      if (!doctor) return { doctor: null, appointments: [], notesByAppointmentId: {} };
 
-      const joinedRes = await supabase
-        .from("appointments")
-        .select(
-          "id, doctor_id, patient_id, appointment_date, start_time, end_time, modality, status, patients(full_name, rut_dni, email, phone)",
-        )
-        .eq("doctor_id", doctor.id)
-        .order("appointment_date", { ascending: true })
-        .order("start_time", { ascending: true });
+      const [joinedRes, notesRes] = await Promise.all([
+        supabase
+          .from("appointments")
+          .select(
+            "id, doctor_id, patient_id, appointment_date, start_time, end_time, modality, status, patients(user_id, full_name, rut_dni, email, phone)",
+          )
+          .eq("doctor_id", doctor.id)
+          .order("appointment_date", { ascending: true })
+          .order("start_time", { ascending: true }),
+        supabase.from("consultation_notes").select("*").eq("doctor_id", doctor.id),
+      ]);
+
+      const notesByAppointmentId: Record<string, ConsultationNoteRecord> = {};
+      if (!notesRes.error && notesRes.data) {
+        for (const note of notesRes.data) {
+          notesByAppointmentId[note.appointment_id] = note;
+        }
+      }
 
       if (!joinedRes.error && joinedRes.data) {
         const mapped: DoctorAppointmentView[] = joinedRes.data.map((row) => {
@@ -161,12 +186,13 @@ function DoctorAppointmentsPage() {
                     rut_dni: rawPatient.rut_dni,
                     email: rawPatient.email,
                     phone: rawPatient.phone,
+                    user_id: rawPatient.user_id,
                   },
                 }
               : {}),
           };
         });
-        return { doctor, appointments: mapped };
+        return { doctor, appointments: mapped, notesByAppointmentId };
       }
 
       const basicRes = await supabase
@@ -189,7 +215,7 @@ function DoctorAppointmentsPage() {
         status: normalizeAppointmentStatus(row.status),
       }));
 
-      return { doctor, appointments: mappedBasic };
+      return { doctor, appointments: mappedBasic, notesByAppointmentId };
     },
   });
 
@@ -268,6 +294,14 @@ function DoctorAppointmentsPage() {
     },
   });
 
+  const notesByAppointmentId = useMemo(
+    () => ({
+      ...(doctorScheduleQuery.data?.notesByAppointmentId ?? {}),
+      ...localNotesMap,
+    }),
+    [doctorScheduleQuery.data?.notesByAppointmentId, localNotesMap],
+  );
+
   const appointments = useMemo(() => {
     const list = doctorScheduleQuery.data?.appointments ?? [];
     return list.map((appt) => {
@@ -286,6 +320,7 @@ function DoctorAppointmentsPage() {
   }, [appointments]);
 
   const doctorInfo = doctorScheduleQuery.data?.doctor;
+  const resolvedDoctorId = doctorData?.id ?? doctorInfo?.id ?? null;
 
   return (
     <>
@@ -442,24 +477,34 @@ function DoctorAppointmentsPage() {
                       </div>
                     ) : (
                       <div className="grid gap-4 md:grid-cols-2">
-                        {list.map((appt, index) => (
-                          <DoctorAppointmentCard
-                            key={appt.id}
-                            appointment={appt}
-                            index={index}
-                            isUpdating={
-                              updateStatusMutation.isPending &&
-                              updateStatusMutation.variables?.appointment.id === appt.id
-                            }
-                            onMarkAttended={() =>
-                              updateStatusMutation.mutate({
-                                appointment: appt,
-                                nextStatus: "completed",
-                              })
-                            }
-                            onRequestCancel={() => setCancelTarget(appt)}
-                          />
-                        ))}
+                        {list.map((appt, index) => {
+                          const existingNote = notesByAppointmentId[appt.id] ?? null;
+                          return (
+                            <DoctorAppointmentCard
+                              key={appt.id}
+                              appointment={appt}
+                              existingNote={existingNote}
+                              index={index}
+                              isUpdating={
+                                updateStatusMutation.isPending &&
+                                updateStatusMutation.variables?.appointment.id === appt.id
+                              }
+                              onAttendOrRegisterNote={() =>
+                                setNoteModalState({
+                                  appointment: appt,
+                                  readOnly: Boolean(existingNote),
+                                })
+                              }
+                              onViewNote={() =>
+                                setNoteModalState({
+                                  appointment: appt,
+                                  readOnly: true,
+                                })
+                              }
+                              onRequestCancel={() => setCancelTarget(appt)}
+                            />
+                          );
+                        })}
                       </div>
                     )}
                   </TabsContent>
@@ -469,6 +514,20 @@ function DoctorAppointmentsPage() {
           </div>
         )}
       </div>
+
+      <ConsultationNoteDialog
+        appointment={noteModalState?.appointment ?? null}
+        doctorId={resolvedDoctorId}
+        existingNote={
+          noteModalState ? (notesByAppointmentId[noteModalState.appointment.id] ?? null) : null
+        }
+        readOnly={noteModalState?.readOnly ?? false}
+        onClose={() => setNoteModalState(null)}
+        onSuccess={({ appointmentId, note }) => {
+          setOptimisticStatusMap((prev) => ({ ...prev, [appointmentId]: "completed" }));
+          setLocalNotesMap((prev) => ({ ...prev, [appointmentId]: note }));
+        }}
+      />
 
       <AlertDialog
         open={cancelTarget !== null}
@@ -517,21 +576,26 @@ function DoctorAppointmentsPage() {
 
 function DoctorAppointmentCard({
   appointment,
+  existingNote,
   index = 0,
   isUpdating,
-  onMarkAttended,
+  onAttendOrRegisterNote,
+  onViewNote,
   onRequestCancel,
 }: {
   appointment: DoctorAppointmentView;
+  existingNote: ConsultationNoteRecord | null;
   index?: number;
   isUpdating: boolean;
-  onMarkAttended: () => void;
+  onAttendOrRegisterNote: () => void;
+  onViewNote: () => void;
   onRequestCancel: () => void;
 }) {
   const patient = appointment.patient;
   const patientName = patient?.full_name ?? "Paciente agendado";
   const telemedicine = appointment.modality === "telemedicina";
   const isActive = appointment.status === "confirmed" || appointment.status === "scheduled";
+  const isCompleted = appointment.status === "completed";
 
   const statusBadge =
     appointment.status === "completed"
@@ -587,6 +651,16 @@ function DoctorAppointmentCard({
             )}
             {telemedicine ? "Telemedicina" : "Presencial"}
           </Badge>
+
+          {existingNote && (
+            <Badge
+              variant="secondary"
+              className="gap-1.5 border border-primary/20 bg-clinical-soft/70 py-1 text-primary"
+            >
+              <FileText className="size-3.5" />
+              Ficha clínica registrada
+            </Badge>
+          )}
         </div>
 
         <div className="mt-4 grid gap-2 rounded-lg bg-surface-subtle p-3.5 text-sm">
@@ -630,16 +704,29 @@ function DoctorAppointmentCard({
 
       {isActive && (
         <div className="mt-5 flex flex-wrap items-center gap-2.5 border-t border-border pt-4">
-          <Button
-            type="button"
-            size="sm"
-            className="flex-1 bg-success text-success-foreground hover:bg-success/90"
-            disabled={isUpdating}
-            onClick={onMarkAttended}
-          >
-            <CheckCircle2 className="size-4" />
-            Marcar como Atendida
-          </Button>
+          {existingNote ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="flex-1 gap-1.5 border-primary/40 text-primary hover:bg-clinical-soft"
+              onClick={onViewNote}
+            >
+              <FileText className="size-4" />
+              Ver Ficha Clínica
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              size="sm"
+              className="flex-1 gap-1.5 bg-success text-success-foreground hover:bg-success/90"
+              disabled={isUpdating}
+              onClick={onAttendOrRegisterNote}
+            >
+              <ClipboardList className="size-4" />
+              Atender / Registrar Ficha
+            </Button>
+          )}
           <Button
             type="button"
             variant="outline"
@@ -651,6 +738,34 @@ function DoctorAppointmentCard({
             <AlertTriangle className="size-4" />
             Cancelar por fuerza mayor
           </Button>
+        </div>
+      )}
+
+      {isCompleted && (
+        <div className="mt-5 flex flex-wrap items-center gap-2.5 border-t border-border pt-4">
+          {existingNote ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="w-full gap-1.5 border-primary/40 text-primary hover:bg-clinical-soft"
+              onClick={onViewNote}
+            >
+              <FileText className="size-4" />
+              Ver Ficha Clínica (Solo lectura)
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="w-full gap-1.5"
+              onClick={onAttendOrRegisterNote}
+            >
+              <ClipboardList className="size-4" />
+              Registrar Ficha Clínica
+            </Button>
+          )}
         </div>
       )}
     </article>
