@@ -3,9 +3,11 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   CalendarClock,
   CalendarDays,
+  ClipboardCheck,
   Home,
   LogOut,
   Menu,
+  ShieldCheck,
   Stethoscope,
   UserRound,
   X,
@@ -51,12 +53,43 @@ function HeaderLogo() {
 
 export function Navbar() {
   const [open, setOpen] = useState(false);
-  const { signedIn, isDoctor, doctorDisplayName, loading, isAuthReady } = useUserRole();
+  const {
+    signedIn,
+    isDoctor,
+    isAdmin,
+    isRecepcion,
+    doctorDisplayName,
+    loading,
+    isAuthReady,
+  } = useUserRole();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const activeNavItems = isDoctor ? doctorNavItems : patientNavItems;
+  const baseNavItems = isDoctor ? doctorNavItems : patientNavItems;
+  const activeNavItems = [
+    ...baseNavItems,
+    ...(isRecepcion || isAdmin
+      ? [
+          {
+            to: "/recepcion" as const,
+            label: "Recepción",
+            mobileLabel: "Recepción",
+            icon: ClipboardCheck,
+          },
+        ]
+      : []),
+    ...(isAdmin
+      ? [
+          {
+            to: "/admin/doctores" as const,
+            label: "Gestión Médica",
+            mobileLabel: "Admin",
+            icon: ShieldCheck,
+          },
+        ]
+      : []),
+  ];
 
   async function signOut() {
     clearCachedRoleData();

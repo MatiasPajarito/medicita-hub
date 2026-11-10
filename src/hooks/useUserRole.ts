@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 
+export type AppRole = "admin" | "doctor" | "recepcion" | "patient";
+
 export interface DoctorData {
   id: string;
   full_name: string;
@@ -12,6 +14,10 @@ export interface DoctorData {
 }
 
 export interface ResolvedUserRoleData {
+  role: AppRole;
+  roles: AppRole[];
+  isAdmin: boolean;
+  isRecepcion: boolean;
   isDoctor: boolean;
   hasDoctorProfile: boolean;
   doctorData: DoctorData | null;
@@ -28,10 +34,14 @@ export interface UseUserRoleResult extends ResolvedUserRoleData {
   isAuthReady: boolean;
 }
 
-const ROLE_CACHE_STORAGE_KEY = "medicita_auth_role_cache_v2";
+const ROLE_CACHE_STORAGE_KEY = "medicita_auth_role_cache_v3";
 export const USER_ROLE_QUERY_KEY = ["user-role-state"] as const;
 
 const GUEST_ROLE_DATA: ResolvedUserRoleData = {
+  role: "patient",
+  roles: [],
+  isAdmin: false,
+  isRecepcion: false,
   isDoctor: false,
   hasDoctorProfile: false,
   doctorData: null,
@@ -56,7 +66,8 @@ function readCachedRoleData(): ResolvedUserRoleData | undefined {
     if (
       typeof parsed.signedIn === "boolean" &&
       parsed.signedIn &&
-      typeof parsed.hasDoctorProfile === "boolean"
+      typeof parsed.hasDoctorProfile === "boolean" &&
+      typeof parsed.role === "string"
     ) {
       memoryRoleCache = parsed;
       return parsed;
@@ -147,10 +158,28 @@ export async function fetchUserRoleData(): Promise<ResolvedUserRoleData> {
       .maybeSingle(),
   ]);
 
-  const roleList = (rolesRes.data ?? []).map((r) => r.role);
+  const roleList = (rolesRes.data ?? []).map((r) => r.role as AppRole);
   const doctorRow = doctorRes.data ?? null;
   const hasDoctorProfile = Boolean(doctorRow?.id);
+  const isAdmin = roleList.includes("admin");
+  const isRecepcion = roleList.includes("recepcion");
   const isDoctor = roleList.includes("doctor") || hasDoctorProfile;
+
+  const uniqueRoles = Array.from(
+    new Set<AppRole>([
+      ...roleList,
+      ...(hasDoctorProfile ? (["doctor"] as const) : []),
+      "patient",
+    ]),
+  );
+
+  const primaryRole: AppRole = isAdmin
+    ? "admin"
+    : isDoctor
+      ? "doctor"
+      : isRecepcion
+        ? "recepcion"
+        : "patient";
 
   const metadataName =
     typeof user.user_metadata?.["full_name"] === "string"
@@ -169,6 +198,10 @@ export async function fetchUserRoleData(): Promise<ResolvedUserRoleData> {
     : null;
 
   const result: ResolvedUserRoleData = {
+    role: primaryRole,
+    roles: uniqueRoles,
+    isAdmin,
+    isRecepcion,
     isDoctor,
     hasDoctorProfile,
     doctorData: resolvedDoctorData,

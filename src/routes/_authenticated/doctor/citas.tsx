@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { createFileRoute, Link, redirect } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
@@ -43,6 +43,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUserRole } from "@/hooks/useUserRole";
 import { normalizeAppointmentStatus } from "@/lib/appointments";
+import { requireRole } from "@/lib/route-guards";
 import { supabase } from "@/lib/supabase";
 
 export interface DoctorAppointmentView {
@@ -65,17 +66,7 @@ export interface DoctorAppointmentView {
 
 export const Route = createFileRoute("/_authenticated/doctor/citas")({
   beforeLoad: async ({ context }) => {
-    const [rolesRes, doctorRes] = await Promise.all([
-      supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", context.user.id)
-        .in("role", ["doctor", "admin"]),
-      supabase.from("doctors").select("id").eq("user_id", context.user.id).maybeSingle(),
-    ]);
-    if (!rolesRes.data?.length && !doctorRes.data) {
-      throw redirect({ to: "/" });
-    }
+    await requireRole(["doctor", "admin"], context.user.id);
   },
   head: () => ({
     meta: [

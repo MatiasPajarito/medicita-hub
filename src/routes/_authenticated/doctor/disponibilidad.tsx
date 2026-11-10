@@ -1,4 +1,4 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { CalendarClock, ChevronLeft, ChevronRight, Coffee, Save } from "lucide-react";
@@ -13,13 +13,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { getMySchedule, saveMySchedule } from "@/lib/clinical.functions";
-import { supabase } from "@/lib/supabase";
+import { requireRole } from "@/lib/route-guards";
 import { dayRuleSchema, defaultDay, generateSlots, mondayIndex, weekDays, type DayRule } from "@/lib/schedule";
 
 export const Route = createFileRoute("/_authenticated/doctor/disponibilidad")({
   beforeLoad: async ({ context }) => {
-    const { data } = await supabase.from("user_roles").select("role").eq("user_id", context.user.id).in("role", ["doctor", "admin"]);
-    if (!data?.length) throw redirect({ to: "/" });
+    await requireRole(["doctor", "admin"], context.user.id);
   },
 
   head: () => ({ meta: [

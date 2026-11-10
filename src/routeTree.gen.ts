@@ -15,6 +15,8 @@ import { Route as AccesoRouteImport } from './routes/acceso'
 import { Route as BuscarCitasRouteImport } from './routes/buscar-citas'
 import { Route as MedicosRouteImport } from './routes/medicos'
 import { Route as PortalProfesionalRouteImport } from './routes/portal-profesional'
+import { Route as RecepcionRouteImport } from './routes/recepcion'
+import { Route as AdminDoctoresRouteImport } from './routes/admin/doctores'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedMiAgendaRouteImport } from './routes/_authenticated/mi-agenda'
 import { Route as AuthenticatedPerfilRouteImport } from './routes/_authenticated/perfil'
@@ -48,6 +50,16 @@ const MedicosRoute = MedicosRouteImport.update({
 const PortalProfesionalRoute = PortalProfesionalRouteImport.update({
   id: '/portal-profesional',
   path: '/portal-profesional',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RecepcionRoute = RecepcionRouteImport.update({
+  id: '/recepcion',
+  path: '/recepcion',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminDoctoresRoute = AdminDoctoresRouteImport.update({
+  id: '/admin/doctores',
+  path: '/admin/doctores',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
@@ -84,6 +96,8 @@ export interface FileRoutesByFullPath {
   '/buscar-citas': typeof BuscarCitasRoute
   '/medicos': typeof MedicosRoute
   '/portal-profesional': typeof PortalProfesionalRoute
+  '/recepcion': typeof RecepcionRoute
+  '/admin/doctores': typeof AdminDoctoresRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/mi-agenda': typeof AuthenticatedMiAgendaRoute
   '/perfil': typeof AuthenticatedPerfilRoute
@@ -96,6 +110,8 @@ export interface FileRoutesByTo {
   '/buscar-citas': typeof BuscarCitasRoute
   '/medicos': typeof MedicosRoute
   '/portal-profesional': typeof PortalProfesionalRoute
+  '/recepcion': typeof RecepcionRoute
+  '/admin/doctores': typeof AdminDoctoresRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/mi-agenda': typeof AuthenticatedMiAgendaRoute
   '/perfil': typeof AuthenticatedPerfilRoute
@@ -110,6 +126,8 @@ export interface FileRoutesById {
   '/buscar-citas': typeof BuscarCitasRoute
   '/medicos': typeof MedicosRoute
   '/portal-profesional': typeof PortalProfesionalRoute
+  '/recepcion': typeof RecepcionRoute
+  '/admin/doctores': typeof AdminDoctoresRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/mi-agenda': typeof AuthenticatedMiAgendaRoute
   '/_authenticated/perfil': typeof AuthenticatedPerfilRoute
@@ -124,6 +142,8 @@ export interface FileRouteTypes {
     | '/buscar-citas'
     | '/medicos'
     | '/portal-profesional'
+    | '/recepcion'
+    | '/admin/doctores'
     | '/admin'
     | '/mi-agenda'
     | '/perfil'
@@ -136,6 +156,8 @@ export interface FileRouteTypes {
     | '/buscar-citas'
     | '/medicos'
     | '/portal-profesional'
+    | '/recepcion'
+    | '/admin/doctores'
     | '/admin'
     | '/mi-agenda'
     | '/perfil'
@@ -149,6 +171,8 @@ export interface FileRouteTypes {
     | '/buscar-citas'
     | '/medicos'
     | '/portal-profesional'
+    | '/recepcion'
+    | '/admin/doctores'
     | '/_authenticated/admin'
     | '/_authenticated/mi-agenda'
     | '/_authenticated/perfil'
@@ -163,6 +187,8 @@ export interface RootRouteChildren {
   BuscarCitasRoute: typeof BuscarCitasRoute
   MedicosRoute: typeof MedicosRoute
   PortalProfesionalRoute: typeof PortalProfesionalRoute
+  RecepcionRoute: typeof RecepcionRoute
+  AdminDoctoresRoute: typeof AdminDoctoresRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -207,6 +233,20 @@ declare module '@tanstack/react-router' {
       path: '/portal-profesional'
       fullPath: '/portal-profesional'
       preLoaderRoute: typeof PortalProfesionalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/recepcion': {
+      id: '/recepcion'
+      path: '/recepcion'
+      fullPath: '/recepcion'
+      preLoaderRoute: typeof RecepcionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/doctores': {
+      id: '/admin/doctores'
+      path: '/admin/doctores'
+      fullPath: '/admin/doctores'
+      preLoaderRoute: typeof AdminDoctoresRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/admin': {
@@ -274,6 +314,8 @@ const rootRouteChildren: RootRouteChildren = {
   BuscarCitasRoute: BuscarCitasRoute,
   MedicosRoute: MedicosRoute,
   PortalProfesionalRoute: PortalProfesionalRoute,
+  RecepcionRoute: RecepcionRoute,
+  AdminDoctoresRoute: AdminDoctoresRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

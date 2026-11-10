@@ -17,33 +17,42 @@ export type Database = {
       appointments: {
         Row: {
           appointment_date: string
+          booking_code?: string | null
+          checked_in_at?: string | null
           created_at: string
           doctor_id: string
           end_time: string
           id: string
           modality: string
+          order_code?: string | null
           patient_id: string
           start_time: string
           status: string
         }
         Insert: {
           appointment_date: string
+          booking_code?: string | null
+          checked_in_at?: string | null
           created_at?: string
           doctor_id: string
           end_time: string
           id?: string
           modality: string
+          order_code?: string | null
           patient_id: string
           start_time: string
           status?: string
         }
         Update: {
           appointment_date?: string
+          booking_code?: string | null
+          checked_in_at?: string | null
           created_at?: string
           doctor_id?: string
           end_time?: string
           id?: string
           modality?: string
+          order_code?: string | null
           patient_id?: string
           start_time?: string
           status?: string
@@ -301,7 +310,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "doctor" | "patient"
+      app_role: "admin" | "doctor" | "recepcion" | "patient"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -429,7 +438,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "doctor", "patient"],
+      app_role: ["admin", "doctor", "recepcion", "patient"],
     },
   },
 } as const
