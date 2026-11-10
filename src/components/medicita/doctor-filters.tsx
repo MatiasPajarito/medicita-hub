@@ -7,10 +7,10 @@ import {
   ChevronUp,
   Coins,
   Filter,
+  MapPin,
   RotateCcw,
   Search,
   SlidersHorizontal,
-  Stethoscope,
   Video,
   X,
 } from "lucide-react";
@@ -27,7 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
-import { formatFeeCLP, type DoctorSortOption } from "@/lib/doctor-filter";
+import { defaultCities, formatFeeCLP, type DoctorSortOption } from "@/lib/doctor-filter";
 
 export interface DoctorFilterBarProps {
   searchTerm: string;
@@ -36,6 +36,11 @@ export interface DoctorFilterBarProps {
   onSpecialtyChange: (value: string) => void;
   availableSpecialties: string[];
   specialtyCounts?: Record<string, number>;
+  // City filter (Req #4)
+  city?: string;
+  onCityChange?: (value: string) => void;
+  availableCities?: string[];
+  cityCounts?: Record<string, number>;
   maxFee?: number | undefined;
   onMaxFeeChange: (value: number | undefined) => void;
   maxAvailableFee?: number;
@@ -70,6 +75,10 @@ export function DoctorFilterBar({
   onSpecialtyChange,
   availableSpecialties,
   specialtyCounts = {},
+  city = "all",
+  onCityChange,
+  availableCities = [...defaultCities],
+  cityCounts = {},
   maxFee,
   onMaxFeeChange,
   maxAvailableFee = 100000,
@@ -101,6 +110,7 @@ export function DoctorFilterBar({
   const hasAnyFilterActive = useMemo(() => {
     return (
       (specialty !== "all" && specialty !== "todas") ||
+      (city !== "all" && city !== "todas") ||
       Boolean(searchTerm.trim()) ||
       (maxFee !== undefined && maxFee < maxAvailableFee) ||
       sortBy !== "default" ||
@@ -109,6 +119,7 @@ export function DoctorFilterBar({
     );
   }, [
     specialty,
+    city,
     searchTerm,
     maxFee,
     maxAvailableFee,
@@ -123,17 +134,17 @@ export function DoctorFilterBar({
 
   return (
     <div className="mb-8 space-y-4">
-      {/* Primary search bar & specialty select */}
+      {/* Primary search bar, specialty select & city select */}
       <Card className="border-border shadow-sm">
         <CardContent className="p-4 sm:p-5">
-          <div className="grid gap-3 md:grid-cols-[1.5fr_1.2fr_auto_auto]">
+          <div className="grid gap-3 md:grid-cols-[1.4fr_1.1fr_1fr_auto_auto]">
             {/* Search Input */}
             <div className="relative">
               <Search className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={searchTerm}
                 onChange={(e) => onSearchChange(e.target.value)}
-                placeholder="Buscar por nombre, especialidad o biografía…"
+                placeholder="Buscar por nombre, especialidad, ciudad o biografía…"
                 className="h-11 pl-10 pr-9 bg-background"
                 aria-label="Buscar profesionales"
               />
@@ -160,6 +171,34 @@ export function DoctorFilterBar({
                   {availableSpecialties.map((s) => (
                     <SelectItem key={s} value={s}>
                       {s} {specialtyCounts[s] ? `(${specialtyCounts[s]})` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* City / Comuna Select (Req #4) */}
+            <div>
+              <Select
+                value={city}
+                onValueChange={(val) => {
+                  if (onCityChange) onCityChange(val);
+                }}
+              >
+                <SelectTrigger
+                  className="h-11 bg-background"
+                  aria-label="Filtrar por ciudad o comuna"
+                >
+                  <span className="flex items-center gap-2 truncate">
+                    <MapPin className="size-4 shrink-0 text-primary" />
+                    <SelectValue placeholder="Todas las ciudades" />
+                  </span>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas las ciudades</SelectItem>
+                  {availableCities.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {c} {cityCounts[c] ? `(${cityCounts[c]})` : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -432,6 +471,21 @@ export function DoctorFilterBar({
                   onClick={() => onSpecialtyChange("all")}
                   className="rounded-full hover:bg-muted p-0.5"
                   aria-label="Quitar filtro de especialidad"
+                >
+                  <X className="size-3" />
+                </button>
+              </Badge>
+            )}
+
+            {/* City badge */}
+            {city !== "all" && city !== "todas" && onCityChange && (
+              <Badge variant="secondary" className="gap-1 pl-2.5 pr-1.5 py-1 font-normal">
+                Ciudad: <strong className="font-semibold">{city}</strong>
+                <button
+                  type="button"
+                  onClick={() => onCityChange("all")}
+                  className="rounded-full hover:bg-muted p-0.5"
+                  aria-label="Quitar filtro de ciudad"
                 >
                   <X className="size-3" />
                 </button>

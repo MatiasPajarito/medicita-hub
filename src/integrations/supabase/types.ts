@@ -118,6 +118,7 @@ export type Database = {
       doctors: {
         Row: {
           bio: string
+          city?: string | null
           consultation_fee: number
           created_at: string
           full_name: string
@@ -130,6 +131,7 @@ export type Database = {
         }
         Insert: {
           bio: string
+          city?: string | null
           consultation_fee: number
           created_at?: string
           full_name: string
@@ -142,6 +144,7 @@ export type Database = {
         }
         Update: {
           bio?: string
+          city?: string | null
           consultation_fee?: number
           created_at?: string
           full_name?: string

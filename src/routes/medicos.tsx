@@ -11,6 +11,7 @@ import {
   Activity,
   Brain,
   Baby,
+  MapPin,
   ShieldCheck,
 } from "lucide-react";
 import { BookingDialog } from "@/components/medicita/booking-dialog";
@@ -22,8 +23,10 @@ import { DoctorFilterBar } from "@/components/medicita/doctor-filters";
 import type { PublicDoctor } from "@/lib/booking";
 import { specialties as clinicalSpecialties } from "@/lib/clinical-schemas";
 import {
+  defaultCities,
   filterAndSortDoctors,
   formatFeeCLP,
+  getCityCounts,
   getSpecialtyCounts,
   type DoctorSortOption,
 } from "@/lib/doctor-filter";
@@ -33,6 +36,7 @@ interface RawDoctor {
   id: string;
   full_name: string;
   specialty: string;
+  city?: string | null;
   bio?: string | null;
   license_number?: string | null;
   price?: number | null;
@@ -46,6 +50,7 @@ export const Route = createFileRoute("/medicos")({
   ): {
     doctor?: string | undefined;
     specialty?: string | undefined;
+    city?: string | undefined;
     search?: string | undefined;
     date?: string | undefined;
     modality?: string | undefined;
@@ -54,6 +59,7 @@ export const Route = createFileRoute("/medicos")({
   } => ({
     doctor: typeof s["doctor"] === "string" ? s["doctor"] : undefined,
     specialty: typeof s["specialty"] === "string" ? s["specialty"] : undefined,
+    city: typeof s["city"] === "string" ? s["city"] : undefined,
     search: typeof s["search"] === "string" ? s["search"] : undefined,
     date:
       typeof s["date"] === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s["date"])
@@ -72,7 +78,7 @@ export const Route = createFileRoute("/medicos")({
       {
         name: "description",
         content:
-          "Busca y filtra profesionales médicos por especialidad, tarifa y nombre para agendar tu próxima atención.",
+          "Busca y filtra profesionales médicos por especialidad, ciudad, tarifa y nombre para agendar tu próxima atención.",
       },
       { property: "og:title", content: "Profesionales médicos — MediCita" },
       {
@@ -149,13 +155,13 @@ async function fetchDoctorsFromSupabase() {
 
   return (data || []).map((doc: RawDoctor) => ({
     ...doc,
+    city: doc.city?.trim() || "Santiago",
     consultation_fee: Number(doc.price || doc.consultation_fee || 0),
   }));
 }
 
 function DoctorsDirectory() {
   const doctors = useQuery({
-    // Clave propia: ["doctors"] la usan también /buscar-citas y el inicio con otro formato de datos.
     queryKey: ["doctors", "directory"],
     queryFn: fetchDoctorsFromSupabase,
   });
@@ -165,6 +171,7 @@ function DoctorsDirectory() {
 
   const [searchTerm, setSearchTerm] = useState(searchParams.search ?? "");
   const [specialty, setSpecialty] = useState(searchParams.specialty ?? "all");
+  const [city, setCity] = useState(searchParams.city ?? "all");
   const [date, setDate] = useState(searchParams.date ?? "");
   const [modality, setModality] = useState(searchParams.modality ?? "todas");
   const [maxFee, setMaxFee] = useState<number | undefined>(searchParams.maxPrice);
@@ -183,6 +190,7 @@ function DoctorsDirectory() {
           id: found.id,
           full_name: found.full_name,
           specialty: found.specialty,
+          city: found.city,
           bio: found.bio ?? "",
           photo_url: null,
           consultation_fee: found.consultation_fee,
@@ -198,8 +206,20 @@ function DoctorsDirectory() {
     return combined.sort((a, b) => a.localeCompare(b, "es", { sensitivity: "base" }));
   }, [rawDoctors]);
 
+  const availableCities = useMemo(() => {
+    const fromData = rawDoctors
+      .map((d) => d.city?.trim())
+      .filter((c): c is string => Boolean(c));
+    const combined = Array.from(new Set([...defaultCities, ...fromData]));
+    return combined.sort((a, b) => a.localeCompare(b, "es", { sensitivity: "base" }));
+  }, [rawDoctors]);
+
   const specialtyCounts = useMemo(() => {
     return getSpecialtyCounts(rawDoctors);
+  }, [rawDoctors]);
+
+  const cityCounts = useMemo(() => {
+    return getCityCounts(rawDoctors);
   }, [rawDoctors]);
 
   const { minAvailableFee, maxAvailableFee } = useMemo(() => {
@@ -215,14 +235,16 @@ function DoctorsDirectory() {
     return filterAndSortDoctors(rawDoctors, {
       searchTerm,
       specialty,
+      city,
       maxFee,
       sortBy,
     });
-  }, [rawDoctors, searchTerm, specialty, maxFee, sortBy]);
+  }, [rawDoctors, searchTerm, specialty, city, maxFee, sortBy]);
 
   function handleResetFilters() {
     setSearchTerm("");
     setSpecialty("all");
+    setCity("all");
     setDate("");
     setModality("todas");
     setMaxFee(undefined);
@@ -246,12 +268,24 @@ function DoctorsDirectory() {
     });
   }
 
+  function handleCityChange(newCity: string) {
+    setCity(newCity);
+    void navigate({
+      to: "/medicos",
+      search: (prev) => ({
+        ...prev,
+        city: newCity === "all" ? undefined : newCity,
+      }),
+      replace: true,
+    });
+  }
+
   return (
     <>
       <PageHeading
         eyebrow="Directorio clínico"
         title="Profesionales médicos"
-        description="Encuentra al especialista adecuado mediante búsqueda inteligente y filtros avanzados por especialidad y tarifa."
+        description="Encuentra al especialista adecuado mediante búsqueda inteligente y filtros avanzados por especialidad, ciudad y tarifa."
       />
 
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -287,6 +321,10 @@ function DoctorsDirectory() {
               onSpecialtyChange={handleSpecialtyChange}
               availableSpecialties={availableSpecialties}
               specialtyCounts={specialtyCounts}
+              city={city}
+              onCityChange={handleCityChange}
+              availableCities={availableCities}
+              cityCounts={cityCounts}
               maxFee={maxFee}
               onMaxFeeChange={setMaxFee}
               minAvailableFee={minAvailableFee}
@@ -374,11 +412,22 @@ function DoctorsDirectory() {
                           </p>
                         </div>
 
-                        <div className="h-6 flex items-center gap-2 text-xs text-slate-400 mt-2 mb-4">
-                          <ShieldCheck className="size-3.5 text-slate-500 shrink-0" />
-                          <span className="truncate">
-                            Registro: {doctor.license_number || "Acreditado SIS"}
+                        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400 mt-2 mb-4">
+                          <span className="flex items-center gap-1.5 truncate">
+                            <ShieldCheck className="size-3.5 text-slate-500 shrink-0" />
+                            <span className="truncate">
+                              Registro: {doctor.license_number || "Acreditado SIS"}
+                            </span>
                           </span>
+                          <button
+                            type="button"
+                            onClick={() => handleCityChange(doctor.city || "Santiago")}
+                            className="inline-flex items-center gap-1 rounded-md border border-slate-700/80 bg-slate-800/60 px-2 py-0.5 text-[11px] font-medium text-slate-300 transition-colors hover:border-primary/40 hover:text-primary cursor-pointer"
+                            title={`Filtrar por ${doctor.city || "Santiago"}`}
+                          >
+                            <MapPin className="size-3 text-primary" />
+                            {doctor.city || "Santiago"}
+                          </button>
                         </div>
 
                         {/* Pie con precio y botón de reserva alineados al fondo */}
@@ -401,6 +450,7 @@ function DoctorsDirectory() {
                                 id: doctor.id,
                                 full_name: doctor.full_name,
                                 specialty: doctor.specialty,
+                                city: doctor.city,
                                 bio: doctor.bio ?? "",
                                 photo_url: null,
                                 consultation_fee: doctor.consultation_fee,

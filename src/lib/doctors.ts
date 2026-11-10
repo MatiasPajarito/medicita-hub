@@ -5,6 +5,7 @@ type DoctorRow = {
   id: string;
   full_name: string;
   specialty: string;
+  city?: string | null;
   bio?: string | null;
   photo_url?: string | null;
   consultation_fee?: number | string | null;
@@ -29,6 +30,7 @@ export async function fetchPublicDoctors(): Promise<(PublicDoctor & { is_active:
       id: row.id,
       full_name: row.full_name,
       specialty: row.specialty,
+      city: row.city?.trim() || "Santiago",
       bio: row.bio ?? "",
       photo_url: row.photo_url ?? null,
       consultation_fee: Number(row.consultation_fee ?? row.price ?? 0),

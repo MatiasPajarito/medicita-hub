@@ -3,7 +3,9 @@ import {
   filterAndSortDoctors,
   filterDoctors,
   formatFeeCLP,
+  getCityCounts,
   getSpecialtyCounts,
+  matchesCity,
   matchesFeeRange,
   matchesSearchTerm,
   matchesSpecialty,
@@ -17,6 +19,7 @@ const mockDoctors = [
     id: "doc-1",
     full_name: "Dra. Camila Rojas",
     specialty: "Cardiología",
+    city: "Santiago",
     bio: "Especialista en prevención y tratamiento cardiovascular para adultos.",
     photo_url: "https://example.com/camila.jpg",
     consultation_fee: 35000,
@@ -25,6 +28,7 @@ const mockDoctors = [
     id: "doc-2",
     full_name: "Dr. Andrés Silva",
     specialty: "Medicina General",
+    city: "Melipilla",
     bio: "Médico cirujano con 10 años de experiencia en atención primaria de salud.",
     photo_url: null,
     consultation_fee: 25000,
@@ -33,6 +37,7 @@ const mockDoctors = [
     id: "doc-3",
     full_name: "Dra. Beatriz Morales",
     specialty: "Pediatría",
+    city: "Valparaíso",
     bio: "Atención integral del recién nacido, niños y adolescentes con enfoque preventivo.",
     photo_url: "https://example.com/beatriz.jpg",
     consultation_fee: 40000,
@@ -41,6 +46,7 @@ const mockDoctors = [
     id: "doc-4",
     full_name: "Dr. Daniel Castro",
     specialty: "Salud Mental",
+    city: "Santiago",
     bio: "Psiquiatra de adultos con enfoque en trastornos del ánimo y ansiedad.",
     photo_url: null,
     consultation_fee: 55000,
@@ -49,6 +55,7 @@ const mockDoctors = [
     id: "doc-5",
     full_name: "Dra. Elena Fuentes",
     specialty: "Cardiología",
+    city: "Melipilla",
     bio: "Cardióloga intervencionista y ecocardiografista avanzada.",
     photo_url: "https://example.com/elena.jpg",
     consultation_fee: 45000,
@@ -94,6 +101,29 @@ describe("doctor-filter: matchesSpecialty", () => {
   test("returns false for different specialty", () => {
     expect(matchesSpecialty(cardiologist, "Pediatría")).toBe(false);
     expect(matchesSpecialty(cardiologist, "Salud Mental")).toBe(false);
+  });
+});
+
+describe("doctor-filter: matchesCity", () => {
+  const santiagoDoc = doctorAt(0);
+  const valparaisoDoc = doctorAt(2);
+
+  test("returns true when city is 'all', 'todas', or empty", () => {
+    expect(matchesCity(santiagoDoc, "all")).toBe(true);
+    expect(matchesCity(santiagoDoc, "todas")).toBe(true);
+    expect(matchesCity(santiagoDoc, "")).toBe(true);
+    expect(matchesCity(santiagoDoc, undefined)).toBe(true);
+  });
+
+  test("matches city accent-insensitively and case-insensitively", () => {
+    expect(matchesCity(valparaisoDoc, "Valparaíso")).toBe(true);
+    expect(matchesCity(valparaisoDoc, "valparaiso")).toBe(true);
+    expect(matchesCity(valparaisoDoc, "Santiago")).toBe(false);
+  });
+
+  test("defaults missing city to Santiago", () => {
+    expect(matchesCity({ city: null }, "Santiago")).toBe(true);
+    expect(matchesCity({ city: undefined }, "Melipilla")).toBe(false);
   });
 });
 
@@ -170,6 +200,11 @@ describe("doctor-filter: filterDoctors", () => {
     expect(results.every((d) => d.specialty === "Cardiología")).toBe(true);
   });
 
+  test("filters by city", () => {
+    const results = filterDoctors(mockDoctors, { city: "Melipilla" });
+    expect(results.map((d) => d.full_name)).toEqual(["Dr. Andrés Silva", "Dra. Elena Fuentes"]);
+  });
+
   test("filters by search term", () => {
     const results = filterDoctors(mockDoctors, { searchTerm: "cirujano" });
     expect(results.length).toBe(1);
@@ -182,9 +217,10 @@ describe("doctor-filter: filterDoctors", () => {
     expect(results.map((d) => d.consultation_fee)).toEqual([35000, 25000]);
   });
 
-  test("combines specialty and search term", () => {
+  test("combines specialty, city and search term", () => {
     const results = filterDoctors(mockDoctors, {
       specialty: "Cardiología",
+      city: "Melipilla",
       searchTerm: "intervencionista",
     });
     expect(results.length).toBe(1);
@@ -263,14 +299,19 @@ describe("doctor-filter: filterAndSortDoctors", () => {
   });
 });
 
-describe("doctor-filter: getSpecialtyCounts and formatFeeCLP", () => {
-  test("computes correct count per specialty", () => {
+describe("doctor-filter: getSpecialtyCounts, getCityCounts and formatFeeCLP", () => {
+  test("computes correct count per specialty and city", () => {
     const counts = getSpecialtyCounts(mockDoctors);
     expect(counts["Cardiología"]).toBe(2);
     expect(counts["Medicina General"]).toBe(1);
     expect(counts["Pediatría"]).toBe(1);
     expect(counts["Salud Mental"]).toBe(1);
     expect(counts["Dermatología"]).toBeUndefined();
+
+    const cities = getCityCounts(mockDoctors);
+    expect(cities["Santiago"]).toBe(2);
+    expect(cities["Melipilla"]).toBe(2);
+    expect(cities["Valparaíso"]).toBe(1);
   });
 
   test("formats fees as CLP string with dot thousand separators", () => {

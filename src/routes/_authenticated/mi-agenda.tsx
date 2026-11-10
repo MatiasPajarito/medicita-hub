@@ -8,9 +8,19 @@ import {
 import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
-import { CalendarDays, CalendarX2, Clock3, MapPin, Video, X } from "lucide-react";
+import {
+  AlertCircle,
+  CalendarClock,
+  CalendarDays,
+  CalendarX2,
+  Clock3,
+  MapPin,
+  Video,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import { PageHeading } from "@/components/medicita/page-heading";
+import { RescheduleDialog } from "@/components/medicita/reschedule-dialog";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -28,7 +38,9 @@ import {
 import {
   appointmentStatus,
   cancelPatientAppointment,
+  canModifyWithMinimumNotice,
   groupAppointments,
+  MIN_NOTICE_MESSAGE,
   normalizeAppointmentStatus,
   patientAppointmentsQuery,
   type Appointment,
@@ -37,6 +49,8 @@ import { clinicNow } from "@/lib/booking";
 
 export interface AppointmentView {
   id: string;
+  doctor_id: string;
+  patient_id?: string | undefined;
   appointment_date: string;
   start_time: string;
   end_time: string;
@@ -123,9 +137,14 @@ function AgendaError({ error }: ErrorComponentProps) {
   return (
     <>
       <Heading />
-      <div role="alert" className="mx-auto max-w-7xl px-4 py-16 text-center animate-in fade-in duration-300">
+      <div
+        role="alert"
+        className="mx-auto max-w-7xl px-4 py-16 text-center animate-in fade-in duration-300"
+      >
         <h2 className="text-xl font-bold">No pudimos cargar tus citas</h2>
-        <p className="mt-2 break-words text-muted-foreground">{error.message}</p>
+        <p className="mt-2 break-words text-muted-foreground">
+          {error instanceof Error ? error.message : String(error)}
+        </p>
         <Button
           variant="outline"
           className="mt-6"
@@ -167,6 +186,8 @@ function toAppointmentView(raw: Appointment): AppointmentView {
   const rawDoctor = raw.doctor ?? raw.doctors;
   return {
     id: raw.id,
+    doctor_id: raw.doctor_id,
+    patient_id: raw.patient_id,
     appointment_date: raw.appointment_date,
     start_time: raw.start_time,
     end_time: raw.end_time,
@@ -191,7 +212,13 @@ function MySchedule() {
   const queryOptions = patientAppointmentsQuery(user.id);
   const { data } = useSuspenseQuery(queryOptions);
   const [selection, setSelection] = useState<AppointmentView | null>(null);
-  const [optimisticCancelledIds, setOptimisticCancelledIds] = useState<Record<string, boolean>>({});
+  const [rescheduleTarget, setRescheduleTarget] = useState<AppointmentView | null>(null);
+  const [optimisticCancelledIds, setOptimisticCancelledIds] = useState<Record<string, boolean>>(
+    {},
+  );
+  const [optimisticRescheduledMap, setOptimisticRescheduledMap] = useState<
+    Record<string, { appointment_date: string; start_time: string; end_time: string }>
+  >({});
   const [now, setNow] = useState(clinicNow);
 
   useEffect(() => {
@@ -202,19 +229,28 @@ function MySchedule() {
   const appointments = useMemo<AppointmentView[]>(
     () =>
       (data ?? []).map((raw) => {
-        const view = toAppointmentView(raw);
+        let view = toAppointmentView(raw);
+        const rescheduled = optimisticRescheduledMap[view.id];
+        if (rescheduled) {
+          view = {
+            ...view,
+            appointment_date: rescheduled.appointment_date,
+            start_time: rescheduled.start_time,
+            end_time: rescheduled.end_time,
+          };
+        }
         if (optimisticCancelledIds[view.id]) {
-          return { ...view, status: "cancelled" };
+          view = { ...view, status: "cancelled" };
         }
         return view;
       }),
-    [data, optimisticCancelledIds],
+    [data, optimisticCancelledIds, optimisticRescheduledMap],
   );
 
   const { upcoming, history } = groupAppointments(appointments, now);
 
   const cancellation = useMutation({
-    mutationFn: (appointment: AppointmentView) => cancelPatientAppointment(appointment, user.id),
+    mutationFn: (appointment: AppointmentView) => cancelPatientAppointment(appointment, user.id, now),
     onMutate: async (appointment) => {
       await queryClient.cancelQueries({ queryKey: queryOptions.queryKey });
       const previous = queryClient.getQueryData<Appointment[]>(queryOptions.queryKey);
@@ -234,6 +270,7 @@ function MySchedule() {
       toast.success("Cita cancelada correctamente");
       void queryClient.invalidateQueries({ queryKey: ["appointments"] });
       void queryClient.invalidateQueries({ queryKey: ["booking-availability"] });
+      void queryClient.invalidateQueries({ queryKey: ["booking-day-busy"] });
     },
     onError: (error, _variables, context) => {
       if (context?.cancelledId) {
@@ -250,6 +287,34 @@ function MySchedule() {
       toast.error(error.message);
     },
   });
+
+  function handleRescheduledSuccess(updated: {
+    id: string;
+    appointment_date: string;
+    start_time: string;
+    end_time: string;
+  }) {
+    setOptimisticRescheduledMap((prev) => ({
+      ...prev,
+      [updated.id]: {
+        appointment_date: updated.appointment_date,
+        start_time: updated.start_time,
+        end_time: updated.end_time,
+      },
+    }));
+    queryClient.setQueryData<Appointment[]>(queryOptions.queryKey, (old) =>
+      old?.map((a) =>
+        a.id === updated.id
+          ? {
+              ...a,
+              appointment_date: updated.appointment_date,
+              start_time: updated.start_time,
+              end_time: updated.end_time,
+            }
+          : a,
+      ),
+    );
+  }
 
   return (
     <>
@@ -284,6 +349,7 @@ function MySchedule() {
                     index={index}
                     now={now}
                     onCancel={() => setSelection(a)}
+                    onReschedule={() => setRescheduleTarget(a)}
                   />
                 ))}
               </div>
@@ -336,6 +402,12 @@ function MySchedule() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <RescheduleDialog
+        appointment={rescheduleTarget}
+        onClose={() => setRescheduleTarget(null)}
+        onRescheduled={handleRescheduledSuccess}
+      />
     </>
   );
 }
@@ -345,11 +417,13 @@ function AppointmentCard({
   index = 0,
   now,
   onCancel,
+  onReschedule,
 }: {
   appointment: AppointmentView;
   index?: number;
   now: Date;
   onCancel?: () => void;
+  onReschedule?: () => void;
 }) {
   const doctor = appointment.doctor;
   const name = doctor?.full_name ?? "Profesional médico";
@@ -362,6 +436,8 @@ function AppointmentCard({
     .join("");
   const status = appointmentStatus(appointment, now);
   const telemedicine = appointment.modality === "telemedicina";
+  const hasActions = Boolean(onCancel || onReschedule);
+  const canModify = canModifyWithMinimumNotice(appointment, now);
 
   return (
     <article
@@ -413,16 +489,57 @@ function AppointmentCard({
           {appointment.start_time.slice(0, 5)} – {appointment.end_time.slice(0, 5)}
         </p>
       </div>
-      {onCancel && (
-        <div className="mt-5 border-t border-border pt-4">
-          <Button
-            variant="outline"
-            className="w-full border-destructive/30 text-destructive transition-colors hover:bg-destructive/10 hover:text-destructive sm:w-auto"
-            onClick={onCancel}
-          >
-            <X />
-            Cancelar cita
-          </Button>
+      {hasActions && (
+        <div className="mt-5 space-y-3 border-t border-border pt-4">
+          {!canModify && (
+            <div
+              role="note"
+              className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs font-medium text-amber-400"
+            >
+              <AlertCircle className="mt-0.5 size-4 shrink-0" />
+              <span>{MIN_NOTICE_MESSAGE}</span>
+            </div>
+          )}
+          <div className="flex flex-wrap gap-2">
+            {onReschedule && (
+              <span
+                title={!canModify ? MIN_NOTICE_MESSAGE : "Reagendar esta cita"}
+                className="w-full sm:w-auto"
+              >
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={!canModify}
+                  onClick={() => {
+                    if (canModify) onReschedule();
+                  }}
+                  className="w-full gap-1.5 border-primary/30 text-primary transition-colors hover:bg-clinical-soft hover:text-primary disabled:pointer-events-none disabled:opacity-50 sm:w-auto"
+                >
+                  <CalendarClock className="size-4" />
+                  Reagendar
+                </Button>
+              </span>
+            )}
+            {onCancel && (
+              <span
+                title={!canModify ? MIN_NOTICE_MESSAGE : "Cancelar esta cita"}
+                className="w-full sm:w-auto"
+              >
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={!canModify}
+                  onClick={() => {
+                    if (canModify) onCancel();
+                  }}
+                  className="w-full gap-1.5 border-destructive/30 text-destructive transition-colors hover:bg-destructive/10 hover:text-destructive disabled:pointer-events-none disabled:opacity-50 sm:w-auto"
+                >
+                  <X className="size-4" />
+                  Cancelar Cita
+                </Button>
+              </span>
+            )}
+          </div>
         </div>
       )}
     </article>

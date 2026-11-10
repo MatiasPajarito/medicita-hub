@@ -24,6 +24,7 @@ export type PublicDoctor = {
   bio: string;
   photo_url: string | null;
   consultation_fee: number;
+  city?: string | null | undefined;
 };
 
 export type BusySlot = { appointment_date: string; start_time: string; end_time: string };

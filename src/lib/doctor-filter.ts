@@ -1,14 +1,24 @@
-import type { PublicDoctor } from "@/lib/booking";
-
 export type DoctorSortOption = "default" | "name-asc" | "name-desc" | "fee-asc" | "fee-desc";
+
+export interface FilterableDoctor {
+  id: string;
+  full_name: string;
+  specialty: string;
+  bio?: string | null | undefined;
+  city?: string | null | undefined;
+  consultation_fee: number;
+}
 
 export interface DoctorFilterOptions {
   searchTerm?: string;
   specialty?: string;
+  city?: string | undefined;
   maxFee?: number | undefined;
   minFee?: number;
   sortBy?: DoctorSortOption;
 }
+
+export const defaultCities = ["Santiago", "Melipilla", "Valparaíso"] as const;
 
 /**
  * Normalizes text for search and filtering:
@@ -34,7 +44,10 @@ export function cleanNameForSorting(name: string): string {
  * Checks if a doctor's specialty matches the target specialty.
  * Handles "all", "todas", case-insensitivity, and accent-insensitivity.
  */
-export function matchesSpecialty(doctor: { specialty: string }, targetSpecialty?: string): boolean {
+export function matchesSpecialty(
+  doctor: { specialty: string },
+  targetSpecialty?: string,
+): boolean {
   if (!targetSpecialty || targetSpecialty === "all" || targetSpecialty === "todas") {
     return true;
   }
@@ -42,11 +55,31 @@ export function matchesSpecialty(doctor: { specialty: string }, targetSpecialty?
 }
 
 /**
+ * Checks if a doctor's city matches the target city.
+ * Defaults missing doctor city to "Santiago" to match the database schema default.
+ */
+export function matchesCity(
+  doctor: { city?: string | null | undefined },
+  targetCity?: string,
+): boolean {
+  if (!targetCity || targetCity === "all" || targetCity === "todas") {
+    return true;
+  }
+  const doctorCity = doctor.city?.trim() || "Santiago";
+  return normalizeText(doctorCity) === normalizeText(targetCity);
+}
+
+/**
  * Checks if a doctor matches a free-text search query.
- * Matches multi-term tokens against doctor's full_name, specialty, and bio.
+ * Matches multi-term tokens against doctor's full_name, specialty, city, and bio.
  */
 export function matchesSearchTerm(
-  doctor: { full_name: string; specialty: string; bio?: string | null },
+  doctor: {
+    full_name: string;
+    specialty: string;
+    bio?: string | null | undefined;
+    city?: string | null | undefined;
+  },
   searchTerm?: string,
 ): boolean {
   if (!searchTerm || !searchTerm.trim()) {
@@ -56,7 +89,7 @@ export function matchesSearchTerm(
   const terms = normalizeText(searchTerm).split(/\s+/).filter(Boolean);
   if (terms.length === 0) return true;
 
-  const searchableText = `${normalizeText(doctor.full_name)} ${normalizeText(doctor.specialty)} ${normalizeText(doctor.bio ?? "")}`;
+  const searchableText = `${normalizeText(doctor.full_name)} ${normalizeText(doctor.specialty)} ${normalizeText(doctor.city ?? "")} ${normalizeText(doctor.bio ?? "")}`;
 
   return terms.every((term) => searchableText.includes(term));
 }
@@ -79,17 +112,18 @@ export function matchesFeeRange(
 }
 
 /**
- * Filters a list of doctors according to search term, specialty, and fee range.
+ * Filters a list of doctors according to search term, specialty, city, and fee range.
  */
-export function filterDoctors<T extends PublicDoctor>(
+export function filterDoctors<T extends FilterableDoctor>(
   doctors: T[],
   options: DoctorFilterOptions,
 ): T[] {
-  const { searchTerm, specialty, minFee, maxFee } = options;
+  const { searchTerm, specialty, city, minFee, maxFee } = options;
 
   return doctors.filter(
     (doc) =>
       matchesSpecialty(doc, specialty) &&
+      matchesCity(doc, city) &&
       matchesSearchTerm(doc, searchTerm) &&
       matchesFeeRange(doc, minFee, maxFee),
   );
@@ -98,7 +132,7 @@ export function filterDoctors<T extends PublicDoctor>(
 /**
  * Sorts doctors according to the specified sort option.
  */
-export function sortDoctors<T extends PublicDoctor>(
+export function sortDoctors<T extends FilterableDoctor>(
   doctors: T[],
   sortBy: DoctorSortOption = "default",
 ): T[] {
@@ -130,7 +164,7 @@ export function sortDoctors<T extends PublicDoctor>(
 /**
  * Filters and sorts doctors in one pass.
  */
-export function filterAndSortDoctors<T extends PublicDoctor>(
+export function filterAndSortDoctors<T extends FilterableDoctor>(
   doctors: T[],
   options: DoctorFilterOptions,
 ): T[] {
@@ -141,12 +175,28 @@ export function filterAndSortDoctors<T extends PublicDoctor>(
 /**
  * Counts the number of doctors in each specialty.
  */
-export function getSpecialtyCounts(doctors: PublicDoctor[]): Record<string, number> {
+export function getSpecialtyCounts(
+  doctors: ReadonlyArray<{ specialty: string }>,
+): Record<string, number> {
   const counts: Record<string, number> = {};
   for (const doc of doctors) {
     if (doc.specialty) {
       counts[doc.specialty] = (counts[doc.specialty] || 0) + 1;
     }
+  }
+  return counts;
+}
+
+/**
+ * Counts the number of doctors in each city.
+ */
+export function getCityCounts(
+  doctors: ReadonlyArray<{ city?: string | null | undefined }>,
+): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const doc of doctors) {
+    const city = doc.city?.trim() || "Santiago";
+    counts[city] = (counts[city] || 0) + 1;
   }
   return counts;
 }

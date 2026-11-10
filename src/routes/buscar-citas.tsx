@@ -7,6 +7,7 @@ export const Route = createFileRoute("/buscar-citas")({
   ): {
     doctor?: string | undefined;
     specialty?: string | undefined;
+    city?: string | undefined;
     search?: string | undefined;
     date?: string | undefined;
     modality?: string | undefined;
@@ -15,6 +16,7 @@ export const Route = createFileRoute("/buscar-citas")({
   } => ({
     doctor: typeof s["doctor"] === "string" ? s["doctor"] : undefined,
     specialty: typeof s["specialty"] === "string" ? s["specialty"] : undefined,
+    city: typeof s["city"] === "string" ? s["city"] : undefined,
     search: typeof s["search"] === "string" ? s["search"] : undefined,
     date:
       typeof s["date"] === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s["date"])
