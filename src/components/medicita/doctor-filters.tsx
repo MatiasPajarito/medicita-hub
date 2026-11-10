@@ -166,7 +166,7 @@ export function DoctorFilterBar({
                 <SelectTrigger className="h-11 bg-background" aria-label="Filtrar por especialidad">
                   <SelectValue placeholder="Todas las especialidades" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent position="popper">
                   <SelectItem value="all">Todas las especialidades ({totalDoctors})</SelectItem>
                   {availableSpecialties.map((s) => (
                     <SelectItem key={s} value={s}>
@@ -186,15 +186,15 @@ export function DoctorFilterBar({
                 }}
               >
                 <SelectTrigger
-                  className="h-11 bg-background"
+                  className="h-11 bg-background flex flex-row items-center justify-between gap-2"
                   aria-label="Filtrar por ciudad o comuna"
                 >
-                  <span className="flex items-center gap-2 truncate">
+                  <div className="flex flex-row items-center gap-2 truncate">
                     <MapPin className="size-4 shrink-0 text-primary" />
                     <SelectValue placeholder="Todas las ciudades" />
-                  </span>
+                  </div>
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent position="popper">
                   <SelectItem value="all">Todas las ciudades</SelectItem>
                   {availableCities.map((c) => (
                     <SelectItem key={c} value={c}>
@@ -324,7 +324,7 @@ export function DoctorFilterBar({
                   <SelectTrigger className="h-10 bg-background">
                     <SelectValue placeholder="Ordenar por…" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent position="popper">
                     <SelectItem value="default">Relevancia clínica (por defecto)</SelectItem>
                     <SelectItem value="name-asc">Nombre: A → Z</SelectItem>
                     <SelectItem value="name-desc">Nombre: Z → A</SelectItem>
@@ -345,7 +345,7 @@ export function DoctorFilterBar({
                     <SelectTrigger className="h-10 bg-background">
                       <SelectValue placeholder="Todas las modalidades" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent position="popper">
                       <SelectItem value="todas">Todas las modalidades</SelectItem>
                       <SelectItem value="presencial">Solo Presencial</SelectItem>
                       <SelectItem value="telemedicina">Solo Telemedicina</SelectItem>

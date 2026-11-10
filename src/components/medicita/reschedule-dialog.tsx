@@ -28,8 +28,6 @@ import {
   bookingDaySlots,
   buildWeekStrip,
   clinicNow,
-  defaultWeeklyRules,
-  generateFallbackSlots,
   getWeekMonday,
   isSlotOccupied,
   type BusySlot,
@@ -155,7 +153,7 @@ function ReschedulePanel({
       const fromDate = today < weekStart ? today : weekStart;
       const untilDate = format(addDays(parseISO(weekStart), 60), "yyyy-MM-dd");
 
-      let rules: DayRule[] = defaultWeeklyRules();
+      let rules: DayRule[] = [];
       const busySlots: BusySlot[] = [];
 
       try {
@@ -178,8 +176,8 @@ function ReschedulePanel({
           }),
         ]);
 
-        if (!scheduleRes.error && scheduleRes.data && scheduleRes.data.length > 0) {
-          const mappedRules: DayRule[] = scheduleRes.data.map((r) => ({
+        if (!scheduleRes.error && scheduleRes.data) {
+          rules = scheduleRes.data.map((r) => ({
             day_of_week: r.day_of_week,
             is_available: r.is_available,
             start_time: r.start_time.slice(0, 5),
@@ -189,9 +187,6 @@ function ReschedulePanel({
             break_end: r.break_end?.slice(0, 5) ?? "14:00",
             slot_duration_minutes: r.slot_duration_minutes || 30,
           }));
-          if (mappedRules.some((r) => r.is_available)) {
-            rules = mappedRules;
-          }
         }
 
         const seen = new Set<string>();
@@ -283,7 +278,7 @@ function ReschedulePanel({
   });
 
   const rules = useMemo(
-    () => availability.data?.rules ?? defaultWeeklyRules(),
+    () => availability.data?.rules ?? [],
     [availability.data?.rules],
   );
 
@@ -314,16 +309,24 @@ function ReschedulePanel({
     [weekDays, selectedDate],
   );
 
-  const displayedSlots = useMemo(() => {
-    if (!activeDay || activeDay.isPast) return [];
-    const duration = activeDay.duration || 30;
+  const activeDayRule = useMemo(() => {
+    if (!activeDay) return undefined;
     const dayIdx = (parseISO(activeDay.date).getDay() + 6) % 7;
-    const rule = rules.find((r) => r.day_of_week === dayIdx);
-    const computedFromRule = bookingDaySlots(rule, activeDay.date, busySlots, now);
-    const baseSlots =
-      computedFromRule.length > 0
-        ? computedFromRule
-        : generateFallbackSlots(activeDay.date, busySlots, now, duration);
+    return rules.find((r) => r.day_of_week === dayIdx);
+  }, [activeDay, rules]);
+
+  const displayedSlots = useMemo(() => {
+    if (
+      !activeDay ||
+      activeDay.isPast ||
+      !activeDay.isAvailable ||
+      !activeDayRule ||
+      !activeDayRule.is_available
+    ) {
+      return [];
+    }
+    const duration = activeDay.duration || 30;
+    const baseSlots = bookingDaySlots(activeDayRule, activeDay.date, busySlots, now);
 
     return baseSlots.map((s) => {
       if (isSlotOccupied(activeDay.date, s.time, duration, busySlots)) {
@@ -348,7 +351,7 @@ function ReschedulePanel({
       }
       return s;
     });
-  }, [activeDay, rules, busySlots, now, appointment.appointment_date, currentStartShort]);
+  }, [activeDay, activeDayRule, busySlots, now, appointment.appointment_date, currentStartShort]);
 
   const availableSlotsCount = useMemo(
     () => displayedSlots.filter((s) => s.available).length,
@@ -527,8 +530,8 @@ function ReschedulePanel({
               className="grid flex-1 grid-cols-7 gap-1 sm:gap-1.5"
             >
               {weekDays.map((day) => {
-                const isSelected = activeDay?.date === day.date && !day.isPast;
                 const isDisabled = day.isPast || !day.isAvailable;
+                const isSelected = activeDay?.date === day.date && !isDisabled;
 
                 return (
                   <button
@@ -651,7 +654,9 @@ function ReschedulePanel({
             </div>
           ) : (
             <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-              No hay bloques disponibles en la fecha seleccionada. Elige otro día de la semana.
+              {!activeDayRule || !activeDayRule.is_available || !activeDay?.isAvailable
+                ? "El profesional no atiende este día"
+                : "No hay bloques disponibles en la fecha seleccionada. Elige otro día de la semana."}
             </div>
           )}
         </div>

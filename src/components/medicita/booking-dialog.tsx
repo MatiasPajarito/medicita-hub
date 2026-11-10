@@ -34,8 +34,6 @@ import {
 import {
   buildWeekStrip,
   clinicNow,
-  defaultWeeklyRules,
-  generateFallbackSlots,
   getWeekMonday,
   isSlotOccupied,
   type BusySlot,
@@ -126,27 +124,11 @@ function BookingPanel({
   // Compute starting week Monday and initial selected date
   const initialSetup = useMemo(() => {
     const baseDate = initialDate && initialDate >= today ? initialDate : today;
-    const baseMonday = getWeekMonday(baseDate);
-    const defaultRules = defaultWeeklyRules();
-    const firstWeek = buildWeekStrip(baseMonday, defaultRules, [], now);
-    const firstAvailableInBaseWeek = firstWeek.find((d) => d.date >= baseDate && d.isAvailable);
-
-    if (firstAvailableInBaseWeek) {
-      return {
-        weekStart: baseMonday,
-        selectedDate: firstAvailableInBaseWeek.date,
-      };
-    }
-
-    const nextMonday = format(addDays(parseISO(baseMonday), 7), "yyyy-MM-dd");
-    const nextWeek = buildWeekStrip(nextMonday, defaultRules, [], now);
-    const firstAvailableInNextWeek = nextWeek.find((d) => d.isAvailable);
-
     return {
-      weekStart: nextMonday,
-      selectedDate: firstAvailableInNextWeek?.date ?? nextMonday,
+      weekStart: getWeekMonday(baseDate),
+      selectedDate: baseDate,
     };
-  }, [initialDate, now, today]);
+  }, [initialDate, today]);
 
   const [weekStart, setWeekStart] = useState(initialSetup.weekStart);
   const [selectedDate, setSelectedDate] = useState(initialSetup.selectedDate);
@@ -185,7 +167,7 @@ function BookingPanel({
       const fromDate = today < weekStart ? today : weekStart;
       const untilDate = format(addDays(parseISO(weekStart), 60), "yyyy-MM-dd");
 
-      let rules: DayRule[] = defaultWeeklyRules();
+      let rules: DayRule[] = [];
       const busySlots: BusySlot[] = [];
 
       try {
@@ -207,8 +189,8 @@ function BookingPanel({
           }),
         ]);
 
-        if (!scheduleRes.error && scheduleRes.data && scheduleRes.data.length > 0) {
-          const mappedRules: DayRule[] = scheduleRes.data.map((r) => ({
+        if (!scheduleRes.error && scheduleRes.data) {
+          rules = scheduleRes.data.map((r) => ({
             day_of_week: r.day_of_week,
             is_available: r.is_available,
             start_time: r.start_time.slice(0, 5),
@@ -218,9 +200,6 @@ function BookingPanel({
             break_end: r.break_end?.slice(0, 5) ?? "14:00",
             slot_duration_minutes: r.slot_duration_minutes || 30,
           }));
-          if (mappedRules.some((r) => r.is_available)) {
-            rules = mappedRules;
-          }
         }
 
         const seen = new Set<string>();
@@ -265,7 +244,7 @@ function BookingPanel({
   });
 
   const rules = useMemo(
-    () => availability.data?.rules ?? defaultWeeklyRules(),
+    () => availability.data?.rules ?? [],
     [availability.data?.rules],
   );
 
@@ -335,39 +314,49 @@ function BookingPanel({
     [weekStart, rules, busySlots, now],
   );
 
-  // Keep selectedDate valid within the active week when navigating weeks
+  // Keep selectedDate valid within the active week when navigating weeks or after schedule loads
   useEffect(() => {
+    if (availability.isPending) return;
     const inCurrentWeek = weekDays.find((d) => d.date === selectedDate);
-    if (!inCurrentWeek || inCurrentWeek.isPast) {
-      const firstAvailable = weekDays.find((d) => d.isAvailable) ?? weekDays.find((d) => !d.isPast);
+    if (!inCurrentWeek || inCurrentWeek.isPast || !inCurrentWeek.isAvailable) {
+      const firstAvailable = weekDays.find((d) => d.isAvailable);
       if (firstAvailable && firstAvailable.date !== selectedDate) {
         setSelectedDate(firstAvailable.date);
         setSlot("");
       }
     }
-  }, [weekDays, selectedDate]);
+  }, [availability.isPending, weekDays, selectedDate]);
 
   const activeDay = useMemo(
     () => weekDays.find((d) => d.date === selectedDate) ?? weekDays.find((d) => d.isAvailable) ?? weekDays[0],
     [weekDays, selectedDate],
   );
 
-  // Ensure time slots are always populated for a valid selected day and occupied slots are marked available: false, reason: "ocupado"
-  const displayedSlots = useMemo(() => {
-    if (!activeDay || activeDay.isPast) return [];
-    const duration = activeDay.duration || 30;
-    const baseSlots =
-      activeDay.slots.length > 0
-        ? activeDay.slots
-        : generateFallbackSlots(activeDay.date, busySlots, now, duration);
+  const activeDayRule = useMemo(() => {
+    if (!activeDay) return undefined;
+    const dayIdx = (parseISO(activeDay.date).getDay() + 6) % 7;
+    return rules.find((r) => r.day_of_week === dayIdx);
+  }, [activeDay, rules]);
 
-    return baseSlots.map((s) => {
+  // Only offer slots when the day has an active availability rule and is available
+  const displayedSlots = useMemo(() => {
+    if (
+      !activeDay ||
+      activeDay.isPast ||
+      !activeDay.isAvailable ||
+      !activeDayRule ||
+      !activeDayRule.is_available
+    ) {
+      return [];
+    }
+    const duration = activeDay.duration || 30;
+    return activeDay.slots.map((s) => {
       if (isSlotOccupied(activeDay.date, s.time, duration, busySlots)) {
         return { ...s, available: false, reason: "ocupado" as const };
       }
       return s;
     });
-  }, [activeDay, busySlots, now]);
+  }, [activeDay, activeDayRule, busySlots]);
 
   const availableSlotsCount = useMemo(
     () => displayedSlots.filter((s) => s.available).length,
@@ -633,8 +622,8 @@ function BookingPanel({
               className="grid flex-1 grid-cols-7 gap-1 sm:gap-1.5"
             >
               {weekDays.map((day) => {
-                const isSelected = activeDay?.date === day.date && !day.isPast;
                 const isDisabled = day.isPast || !day.isAvailable;
+                const isSelected = activeDay?.date === day.date && !isDisabled;
 
                 return (
                   <button
@@ -774,7 +763,9 @@ function BookingPanel({
             </div>
           ) : (
             <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-              No quedan bloques disponibles en este día. Selecciona otro día en la barra semanal o avanza a la próxima semana.
+              {!activeDayRule || !activeDayRule.is_available || !activeDay?.isAvailable
+                ? "El profesional no atiende este día"
+                : "No quedan bloques disponibles en este día. Selecciona otro día en la barra semanal o avanza a la próxima semana."}
             </div>
           )}
         </div>

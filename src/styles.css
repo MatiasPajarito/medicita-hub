@@ -178,6 +178,13 @@
     font-family: var(--font-sans);
     letter-spacing: 0;
   }
+
+  body[data-scroll-locked] {
+    margin-right: 0 !important;
+    padding-right: 0 !important;
+    overflow-y: scroll !important;
+    --removed-body-scroll-bar-size: 0px !important;
+  }
 }
 
 @keyframes routeFadeIn {

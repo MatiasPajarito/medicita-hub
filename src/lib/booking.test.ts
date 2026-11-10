@@ -65,6 +65,21 @@ describe("clinical bookings", () => {
   test("a missing saved schedule never offers fabricated hours", () => {
     expect(buildWeekStrip("2026-11-09", [], [], new Date("2026-11-07T12:00:00")).every((day) => day.slots.length === 0)).toBe(true);
   });
+  test("an unavailable weekday (e.g. Tuesday with is_available=false or missing rule) remains disabled with zero slots", () => {
+    const rules = [
+      defaultDay(0), // Lunes disponible
+      { ...defaultDay(1), is_available: false }, // Martes explícitamente no disponible
+      defaultDay(2), // Miércoles disponible
+    ];
+    const strip = buildWeekStrip("2026-11-09", rules, [], new Date("2026-11-07T12:00:00"));
+    expect(strip[0]?.isAvailable).toBe(true);
+    expect(strip[1]?.dayLabel).toBe("Mar");
+    expect(strip[1]?.isAvailable).toBe(false);
+    expect(strip[1]?.slots).toEqual([]);
+    expect(strip[2]?.isAvailable).toBe(true);
+    expect(strip[3]?.isAvailable).toBe(false);
+    expect(strip[3]?.slots).toEqual([]);
+  });
   test("an overlapping occupied range disables both intersecting slots but not the adjacent slot", () => {
     const slots = bookingDaySlots(defaultDay(0), "2026-11-09", [{ appointment_date: "2026-11-09", start_time: "09:15:00", end_time: "09:45:00" }], new Date("2026-11-07T12:00:00"));
     expect(slots.slice(0, 3).map(({ time, available, reason }) => ({ time, available, reason }))).toEqual([
