@@ -30,3 +30,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Entorno local
+.env
+.env.local
+.env.*.local
