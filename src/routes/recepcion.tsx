@@ -58,7 +58,7 @@ export interface ReceptionAppointmentItem {
 
 export const Route = createFileRoute("/recepcion")({
   beforeLoad: async () => {
-    await requireRole(["recepcion", "admin"]);
+    await requireRole(["recepcion"]);
   },
   head: () => ({
     meta: [

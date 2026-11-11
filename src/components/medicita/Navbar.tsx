@@ -57,12 +57,6 @@ const adminNavItems: NavItem[] = [
     mobileLabel: "Gestión Médica",
     icon: ShieldCheck,
   },
-  {
-    to: "/recepcion",
-    label: "Recepción",
-    mobileLabel: "Recepción",
-    icon: ClipboardCheck,
-  },
 ];
 
 const recepcionNavItems: NavItem[] = [

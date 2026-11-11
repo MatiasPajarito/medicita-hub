@@ -40,6 +40,9 @@ export async function requireRole(
 
   const isAuthorized = allowedRoles.some((role) => userRoles.has(role));
   if (!isAuthorized) {
+    if (userRoles.has("admin") && !allowedRoles.includes("admin")) {
+      throw redirect({ to: "/admin/doctores" });
+    }
     throw redirect({ to: "/" });
   }
 
