@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
@@ -9,7 +8,6 @@ import {
   Trash2,
   UserRound,
 } from "lucide-react";
-import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { PageHeading } from "@/components/medicita/page-heading";
 import {
@@ -33,14 +31,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -53,7 +43,6 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { doctorSchema, specialties, type DoctorInput } from "@/lib/clinical-schemas";
 import { defaultCities } from "@/lib/doctor-filter";
 import { supabase } from "@/lib/supabase";
 
@@ -70,6 +59,26 @@ export interface AdminDoctorRow {
   is_active: boolean;
   user_id: string | null;
 }
+
+const ADMIN_SPECIALTIES = [
+  "Medicina General",
+  "Cardiología",
+  "Salud Mental",
+  "Traumatología",
+  "Pediatría",
+  "Dermatología",
+  "Ginecología",
+  "Neurología",
+  "Oftalmología",
+] as const;
+
+const ADMIN_CITIES = [
+  ...defaultCities,
+  "Viña del Mar",
+  "Concepción",
+  "La Serena",
+  "Temuco",
+] as const;
 
 function formatSafeDoctorFee(doctor: {
   consultation_fee?: number | null | undefined;
@@ -97,11 +106,42 @@ function translateDeleteDoctorError(error: unknown): string {
   return "No pudimos eliminar al profesional.";
 }
 
+function translateCreateDoctorError(error: unknown): string {
+  if (error && typeof error === "object") {
+    const errObj = error as { code?: unknown; message?: unknown };
+    const code = typeof errObj.code === "string" ? errObj.code : "";
+    const message = typeof errObj.message === "string" ? errObj.message : "";
+    if (code === "42501" || /row-level security/i.test(message)) {
+      return "No tienes permisos de administrador para registrar profesionales.";
+    }
+    if (code === "23505") {
+      return "Ya existe un profesional registrado con estos datos.";
+    }
+    if (message) return message;
+  }
+  return "No pudimos registrar al profesional. Verifica los datos e inténtalo nuevamente.";
+}
+
+interface NewDoctorFormErrors {
+  fullName?: string | undefined;
+  specialty?: string | undefined;
+  city?: string | undefined;
+  consultationFee?: string | undefined;
+}
+
 export function AdminDoctorsPanel() {
   const queryClient = useQueryClient();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [newDoctorCity, setNewDoctorCity] = useState<string>("Santiago");
   const [deleteTarget, setDeleteTarget] = useState<AdminDoctorRow | null>(null);
+
+  // Estado del formulario "+ Nuevo profesional"
+  const [fullName, setFullName] = useState("");
+  const [specialty, setSpecialty] = useState<string>("Medicina General");
+  const [city, setCity] = useState<string>("Santiago");
+  const [consultationFeeInput, setConsultationFeeInput] = useState<string>("35000");
+  const [bio, setBio] = useState("");
+  const [isActive, setIsActive] = useState(true);
+  const [formErrors, setFormErrors] = useState<NewDoctorFormErrors>({});
 
   const doctorsQuery = useQuery({
     queryKey: ["admin-doctors"],
@@ -146,6 +186,58 @@ export function AdminDoctorsPanel() {
           user_id: typeof row["user_id"] === "string" ? row["user_id"] : null,
         };
       });
+    },
+  });
+
+  function resetCreateForm() {
+    setFullName("");
+    setSpecialty("Medicina General");
+    setCity("Santiago");
+    setConsultationFeeInput("35000");
+    setBio("");
+    setIsActive(true);
+    setFormErrors({});
+  }
+
+  const createDoctorMutation = useMutation({
+    mutationFn: async (payload: {
+      full_name: string;
+      specialty: string;
+      city: string;
+      consultation_fee: number;
+      bio: string;
+      is_active: boolean;
+    }) => {
+      const { data, error } = await supabase
+        .from("doctors")
+        .insert([
+          {
+            full_name: payload.full_name,
+            specialty: payload.specialty,
+            city: payload.city,
+            consultation_fee: payload.consultation_fee,
+            bio: payload.bio,
+            photo_url: null,
+            is_active: payload.is_active,
+          },
+        ])
+        .select("*")
+        .maybeSingle();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: async () => {
+      resetCreateForm();
+      setCreateDialogOpen(false);
+      toast.success("Profesional registrado exitosamente en el directorio");
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["admin-doctors"] }),
+        queryClient.invalidateQueries({ queryKey: ["doctors"] }),
+      ]);
+    },
+    onError: (error) => {
+      toast.error(translateCreateDoctorError(error));
     },
   });
 
@@ -202,54 +294,45 @@ export function AdminDoctorsPanel() {
     },
   });
 
-  const form = useForm<DoctorInput>({
-    resolver: zodResolver(doctorSchema),
-    defaultValues: {
-      full_name: "",
-      specialty: "Medicina General",
-      bio: "",
-      photo_url: "",
-      consultation_fee: 0,
-      is_active: true,
-    },
-  });
+  function handleCreateDoctorSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (createDoctorMutation.isPending) return;
 
-  const handleCreateSubmit = form.handleSubmit(async (values) => {
-    try {
-      const { error } = await supabase.from("doctors").insert({
-        full_name: values.full_name,
-        specialty: values.specialty,
-        city: newDoctorCity || "Santiago",
-        bio: values.bio,
-        photo_url: values.photo_url ? values.photo_url : null,
-        consultation_fee: values.consultation_fee,
-        is_active: values.is_active,
-      });
+    const cleanName = fullName.trim();
+    const cleanSpecialty = specialty.trim();
+    const cleanCity = city.trim() || "Santiago";
+    const parsedFee = Number(consultationFeeInput);
+    const cleanBio = bio.trim();
 
-      if (error) throw new Error(error.message);
-
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["admin-doctors"] }),
-        queryClient.invalidateQueries({ queryKey: ["doctors"] }),
-      ]);
-
-      form.reset({
-        full_name: "",
-        specialty: "Medicina General",
-        bio: "",
-        photo_url: "",
-        consultation_fee: 0,
-        is_active: true,
-      });
-      setNewDoctorCity("Santiago");
-      setCreateDialogOpen(false);
-      toast.success("Profesional registrado exitosamente");
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "No pudimos registrar al profesional",
-      );
+    const errors: NewDoctorFormErrors = {};
+    if (cleanName.length < 2) {
+      errors.fullName = "Ingresa el nombre completo del profesional.";
     }
-  });
+    if (!cleanSpecialty) {
+      errors.specialty = "Selecciona o ingresa una especialidad.";
+    }
+    if (!cleanCity) {
+      errors.city = "Ingresa una ciudad válida.";
+    }
+    if (consultationFeeInput.trim() === "" || !Number.isFinite(parsedFee) || parsedFee < 0) {
+      errors.consultationFee = "Ingresa una tarifa en CLP válida (0 o mayor).";
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
+
+    setFormErrors({});
+    createDoctorMutation.mutate({
+      full_name: cleanName,
+      specialty: cleanSpecialty,
+      city: cleanCity,
+      consultation_fee: Math.round(parsedFee),
+      bio: cleanBio,
+      is_active: isActive,
+    });
+  }
 
   const doctorsList = doctorsQuery.data ?? [];
 
@@ -260,7 +343,15 @@ export function AdminDoctorsPanel() {
         title="Gestión de Profesionales Médicos"
         description="Administra el directorio clínico, controla la disponibilidad activa de cada especialista o elimina registros."
         action={
-          <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+          <Dialog
+            open={createDialogOpen}
+            onOpenChange={(open) => {
+              if (!createDoctorMutation.isPending) {
+                setCreateDialogOpen(open);
+                if (!open) resetCreateForm();
+              }
+            }}
+          >
             <DialogTrigger asChild>
               <Button className="gap-2">
                 <Plus className="size-4" />
@@ -269,154 +360,185 @@ export function AdminDoctorsPanel() {
             </DialogTrigger>
             <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
               <DialogHeader>
-                <DialogTitle>Alta profesional</DialogTitle>
+                <DialogTitle>Registrar nuevo profesional</DialogTitle>
                 <DialogDescription>
-                  Completa los datos que se mostrarán en el directorio médico de MediCita.
+                  Completa los datos clínicos del médico para incorporarlo al directorio de MediCita.
                 </DialogDescription>
               </DialogHeader>
-              <Form {...form}>
-                <form id="doctor-create-form" onSubmit={handleCreateSubmit} className="grid gap-4 py-2">
-                  <FormField
-                    control={form.control}
-                    name="full_name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Nombre completo</FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="Dra. Camila Rojas" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+
+              <form
+                id="doctor-create-form"
+                onSubmit={handleCreateDoctorSubmit}
+                className="grid gap-4 py-2"
+                noValidate
+              >
+                {/* Nombre completo */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="new-doctor-full-name" className="text-sm font-semibold">
+                    Nombre completo <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="new-doctor-full-name"
+                    value={fullName}
+                    onChange={(e) => {
+                      setFullName(e.target.value);
+                      if (formErrors.fullName) {
+                        setFormErrors((prev) => ({ ...prev, fullName: undefined }));
+                      }
+                    }}
+                    placeholder="Ej. Dra. Camila Rojas"
+                    disabled={createDoctorMutation.isPending}
+                    aria-invalid={Boolean(formErrors.fullName)}
                   />
+                  {formErrors.fullName && (
+                    <p className="text-xs font-medium text-destructive">{formErrors.fullName}</p>
+                  )}
+                </div>
 
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <FormField
-                      control={form.control}
-                      name="specialty"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Especialidad</FormLabel>
-                          <Select value={field.value} onValueChange={field.onChange}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent position="popper">
-                              {specialties.map((specialty) => (
-                                <SelectItem key={specialty} value={specialty}>
-                                  {specialty}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <div className="space-y-2">
-                      <Label htmlFor="doctor-city-select">Ciudad</Label>
-                      <Select value={newDoctorCity} onValueChange={setNewDoctorCity}>
-                        <SelectTrigger id="doctor-city-select">
-                          <SelectValue placeholder="Seleccionar ciudad" />
-                        </SelectTrigger>
-                        <SelectContent position="popper">
-                          {defaultCities.map((city) => (
-                            <SelectItem key={city} value={city}>
-                              {city}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                {/* Especialidad y Ciudad */}
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="new-doctor-specialty" className="text-sm font-semibold">
+                      Especialidad <span className="text-destructive">*</span>
+                    </Label>
+                    <Select
+                      value={specialty}
+                      onValueChange={(val) => {
+                        setSpecialty(val);
+                        if (formErrors.specialty) {
+                          setFormErrors((prev) => ({ ...prev, specialty: undefined }));
+                        }
+                      }}
+                      disabled={createDoctorMutation.isPending}
+                    >
+                      <SelectTrigger id="new-doctor-specialty">
+                        <SelectValue placeholder="Selecciona especialidad" />
+                      </SelectTrigger>
+                      <SelectContent position="popper">
+                        {ADMIN_SPECIALTIES.map((spec) => (
+                          <SelectItem key={spec} value={spec}>
+                            {spec}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {formErrors.specialty && (
+                      <p className="text-xs font-medium text-destructive">{formErrors.specialty}</p>
+                    )}
                   </div>
 
-                  <FormField
-                    control={form.control}
-                    name="bio"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Biografía clínica</FormLabel>
-                        <FormControl>
-                          <Textarea
-                            {...field}
-                            rows={3}
-                            placeholder="Experiencia, enfoque clínico y formación relevante"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="new-doctor-city" className="text-sm font-semibold">
+                      Ciudad <span className="text-destructive">*</span>
+                    </Label>
+                    <Select
+                      value={city}
+                      onValueChange={(val) => {
+                        setCity(val);
+                        if (formErrors.city) {
+                          setFormErrors((prev) => ({ ...prev, city: undefined }));
+                        }
+                      }}
+                      disabled={createDoctorMutation.isPending}
+                    >
+                      <SelectTrigger id="new-doctor-city">
+                        <SelectValue placeholder="Selecciona ciudad" />
+                      </SelectTrigger>
+                      <SelectContent position="popper">
+                        {ADMIN_CITIES.map((c) => (
+                          <SelectItem key={c} value={c}>
+                            {c}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {formErrors.city && (
+                      <p className="text-xs font-medium text-destructive">{formErrors.city}</p>
                     )}
-                  />
-
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <FormField
-                      control={form.control}
-                      name="photo_url"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>URL de fotografía</FormLabel>
-                          <FormControl>
-                            <Input {...field} type="url" placeholder="https://…" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="consultation_fee"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Tarifa de consulta (CLP)</FormLabel>
-                          <FormControl>
-                            <Input
-                              value={field.value}
-                              onBlur={field.onBlur}
-                              name={field.name}
-                              ref={field.ref}
-                              onChange={(event) => field.onChange(event.target.valueAsNumber)}
-                              type="number"
-                              min="0"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
                   </div>
+                </div>
 
-                  <FormField
-                    control={form.control}
-                    name="is_active"
-                    render={({ field }) => (
-                      <FormItem className="flex items-center justify-between rounded-md border p-3">
-                        <div>
-                          <FormLabel>Visible en el directorio</FormLabel>
-                          <p className="text-xs text-muted-foreground">
-                            Disponible para nuevas citas médicas
-                          </p>
-                        </div>
-                        <FormControl>
-                          <Switch checked={field.value} onCheckedChange={field.onChange} />
-                        </FormControl>
-                      </FormItem>
-                    )}
+                {/* Tarifa de consulta */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="new-doctor-fee" className="text-sm font-semibold">
+                    Tarifa de consulta (CLP) <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="new-doctor-fee"
+                    type="number"
+                    min="0"
+                    step="1000"
+                    value={consultationFeeInput}
+                    onChange={(e) => {
+                      setConsultationFeeInput(e.target.value);
+                      if (formErrors.consultationFee) {
+                        setFormErrors((prev) => ({ ...prev, consultationFee: undefined }));
+                      }
+                    }}
+                    placeholder="35000"
+                    disabled={createDoctorMutation.isPending}
+                    aria-invalid={Boolean(formErrors.consultationFee)}
                   />
-                </form>
-              </Form>
-              <DialogFooter>
-                <Button
-                  type="submit"
-                  form="doctor-create-form"
-                  disabled={form.formState.isSubmitting}
-                >
-                  {form.formState.isSubmitting ? "Registrando…" : "Registrar profesional"}
-                </Button>
-              </DialogFooter>
+                  {formErrors.consultationFee && (
+                    <p className="text-xs font-medium text-destructive">
+                      {formErrors.consultationFee}
+                    </p>
+                  )}
+                </div>
+
+                {/* Breve reseña / bio (opcional) */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="new-doctor-bio" className="text-sm font-semibold">
+                    Breve reseña / Biografía{" "}
+                    <span className="text-xs font-normal text-muted-foreground">(Opcional)</span>
+                  </Label>
+                  <Textarea
+                    id="new-doctor-bio"
+                    value={bio}
+                    onChange={(e) => setBio(e.target.value)}
+                    rows={3}
+                    placeholder="Experiencia clínica, áreas de interés y formación relevante…"
+                    disabled={createDoctorMutation.isPending}
+                  />
+                </div>
+
+                {/* Switch de activo por defecto */}
+                <div className="flex items-center justify-between rounded-lg border border-border p-3.5">
+                  <div>
+                    <Label htmlFor="new-doctor-active" className="text-sm font-semibold">
+                      Profesional activo en el directorio
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Habilitado inmediatamente para recibir nuevas reservas
+                    </p>
+                  </div>
+                  <Switch
+                    id="new-doctor-active"
+                    checked={isActive}
+                    disabled={createDoctorMutation.isPending}
+                    onCheckedChange={setIsActive}
+                  />
+                </div>
+
+                <DialogFooter className="gap-2 pt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={createDoctorMutation.isPending}
+                    onClick={() => {
+                      setCreateDialogOpen(false);
+                      resetCreateForm();
+                    }}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button type="submit" disabled={createDoctorMutation.isPending}>
+                    {createDoctorMutation.isPending
+                      ? "Guardando profesional…"
+                      : "Guardar profesional"}
+                  </Button>
+                </DialogFooter>
+              </form>
             </DialogContent>
           </Dialog>
         }

@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import {
+  Ban,
   CalendarDays,
   CheckCircle2,
   ClipboardCheck,
@@ -40,6 +41,7 @@ export interface ReceptionAppointmentItem {
   end_time: string;
   modality: string;
   status: "confirmed" | "scheduled" | "completed" | "cancelled";
+  rawStatus: string;
   checked_in_at: string | null;
   orderCode: string;
   patient: {
@@ -78,6 +80,15 @@ export const Route = createFileRoute("/recepcion")({
   component: ReceptionPage,
 });
 
+function getLocalTodayKey(): string {
+  const now = new Date();
+  return [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, "0"),
+    String(now.getDate()).padStart(2, "0"),
+  ].join("-");
+}
+
 function extractOrderCode(row: Record<string, unknown>, fallbackId: string): string {
   const candidates = [
     row["order_code"],
@@ -96,6 +107,19 @@ function extractOrderCode(row: Record<string, unknown>, fallbackId: string): str
 
 function cleanRutDigits(value: string): string {
   return value.replace(/[^0-9kK]/g, "").toUpperCase();
+}
+
+function isAppointmentCanceled(item: { status: string; rawStatus?: string }): boolean {
+  const s = item.status.toLowerCase();
+  const r = (item.rawStatus ?? "").toLowerCase();
+  return (
+    s === "cancelled" ||
+    s === "canceled" ||
+    s === "cancelada" ||
+    r === "cancelled" ||
+    r === "canceled" ||
+    r === "cancelada"
+  );
 }
 
 function matchesReceptionQuery(item: ReceptionAppointmentItem, rawQuery: string): boolean {
@@ -136,11 +160,49 @@ function matchesReceptionQuery(item: ReceptionAppointmentItem, rawQuery: string)
   return false;
 }
 
+/**
+ * Ordena las citas priorizando:
+ * 1. Citas de HOY pendientes de confirmación (!checked_in_at y no canceladas).
+ * 2. Citas próximas (>= hoy) pendientes de confirmación.
+ * 3. Citas de hoy o próximas con asistencia ya confirmada.
+ * 4. Citas anteriores o canceladas.
+ * Dentro de cada prioridad, ordena cronológicamente por fecha y hora de inicio.
+ */
+function sortReceptionAppointments(
+  items: ReceptionAppointmentItem[],
+  todayStr: string,
+): ReceptionAppointmentItem[] {
+  const getPriority = (item: ReceptionAppointmentItem): number => {
+    const canceled = isAppointmentCanceled(item);
+    const checkedIn = Boolean(item.checked_in_at);
+    const isToday = item.appointment_date === todayStr;
+    const isFuture = item.appointment_date > todayStr;
+
+    if (canceled) return 5;
+    if (isToday && !checkedIn) return 1;
+    if (isFuture && !checkedIn) return 2;
+    if ((isToday || isFuture) && checkedIn) return 3;
+    return 4;
+  };
+
+  return [...items].sort((a, b) => {
+    const prioA = getPriority(a);
+    const prioB = getPriority(b);
+    if (prioA !== prioB) return prioA - prioB;
+
+    const dateCmp = a.appointment_date.localeCompare(b.appointment_date);
+    if (dateCmp !== 0) return dateCmp;
+
+    return a.start_time.localeCompare(b.start_time);
+  });
+}
+
 function ReceptionPage() {
   const queryClient = useQueryClient();
   const [inputValue, setInputValue] = useState("");
   const [submittedQuery, setSubmittedQuery] = useState("");
   const [optimisticCheckInMap, setOptimisticCheckInMap] = useState<Record<string, string>>({});
+  const todayStr = useMemo(() => getLocalTodayKey(), []);
 
   const receptionQueryKey = useMemo(
     () => ["reception-appointments", submittedQuery] as const,
@@ -173,6 +235,7 @@ function ReceptionPage() {
         const id = typeof row["id"] === "string" ? row["id"] : "";
         const checkedInAt =
           typeof row["checked_in_at"] === "string" ? row["checked_in_at"] : null;
+        const rawStatus = typeof row["status"] === "string" ? row["status"] : "confirmed";
 
         return {
           id,
@@ -183,18 +246,17 @@ function ReceptionPage() {
           start_time: typeof row["start_time"] === "string" ? row["start_time"] : "",
           end_time: typeof row["end_time"] === "string" ? row["end_time"] : "",
           modality: typeof row["modality"] === "string" ? row["modality"] : "presencial",
-          status: normalizeAppointmentStatus(
-            typeof row["status"] === "string" ? row["status"] : "confirmed",
-          ),
+          status: normalizeAppointmentStatus(rawStatus),
+          rawStatus,
           checked_in_at: checkedInAt,
           orderCode: extractOrderCode(row, id),
           patient: {
             full_name:
-              typeof rawPatient?.["full_name"] === "string"
+              typeof rawPatient?.["full_name"] === "string" && rawPatient["full_name"].trim()
                 ? rawPatient["full_name"]
                 : "Paciente registrado",
             rut_dni:
-              typeof rawPatient?.["rut_dni"] === "string"
+              typeof rawPatient?.["rut_dni"] === "string" && rawPatient["rut_dni"].trim()
                 ? rawPatient["rut_dni"]
                 : "Sin RUT",
             email: typeof rawPatient?.["email"] === "string" ? rawPatient["email"] : "",
@@ -202,11 +264,11 @@ function ReceptionPage() {
           },
           doctor: {
             full_name:
-              typeof rawDoctor?.["full_name"] === "string"
+              typeof rawDoctor?.["full_name"] === "string" && rawDoctor["full_name"].trim()
                 ? rawDoctor["full_name"]
                 : "Profesional médico",
             specialty:
-              typeof rawDoctor?.["specialty"] === "string"
+              typeof rawDoctor?.["specialty"] === "string" && rawDoctor["specialty"].trim()
                 ? rawDoctor["specialty"]
                 : "Medicina General",
           },
@@ -223,6 +285,9 @@ function ReceptionPage() {
 
   const checkInMutation = useMutation({
     mutationFn: async (appointment: ReceptionAppointmentItem) => {
+      if (isAppointmentCanceled(appointment)) {
+        throw new Error("No se puede confirmar asistencia de una cita cancelada.");
+      }
       const nowIso = new Date().toISOString();
       const { data, error } = await supabase
         .from("appointments")
@@ -285,12 +350,12 @@ function ReceptionPage() {
   }
 
   const displayedAppointments = useMemo(() => {
-    const base = appointmentsQuery.data ?? [];
-    return base.map((item) => {
+    const base = (appointmentsQuery.data ?? []).map((item) => {
       const optimisticCheckIn = optimisticCheckInMap[item.id];
       return optimisticCheckIn ? { ...item, checked_in_at: optimisticCheckIn } : item;
     });
-  }, [appointmentsQuery.data, optimisticCheckInMap]);
+    return sortReceptionAppointments(base, todayStr);
+  }, [appointmentsQuery.data, optimisticCheckInMap, todayStr]);
 
   return (
     <>
@@ -347,8 +412,10 @@ function ReceptionPage() {
               </div>
 
               <p className="text-xs text-muted-foreground">
-                Presiona <kbd className="rounded border px-1.5 py-0.5 font-mono text-[11px]">Enter</kbd>{" "}
-                para consultar la reserva directamente en recepción.
+                Presiona{" "}
+                <kbd className="rounded border px-1.5 py-0.5 font-mono text-[11px]">Enter</kbd> para
+                consultar la reserva directamente en recepción. Sin filtro activo se priorizan las
+                citas de hoy y pendientes de llegada.
               </p>
             </form>
           </CardContent>
@@ -395,22 +462,23 @@ function ReceptionPage() {
           </Card>
         ) : (
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-sm font-semibold text-foreground">
                 {displayedAppointments.length}{" "}
                 {displayedAppointments.length === 1
                   ? "cita encontrada"
                   : "citas encontradas"}
-                {submittedQuery ? ` para "${submittedQuery}"` : ""}
+                {submittedQuery ? ` para "${submittedQuery}"` : " (ordenadas por prioridad de hoy y llegada pendiente)"}
               </p>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
               {displayedAppointments.map((appt) => {
-                const isCheckedIn = Boolean(appt.checked_in_at);
+                const isCancelled = isAppointmentCanceled(appt);
+                const isCheckedIn = Boolean(appt.checked_in_at) && !isCancelled;
                 const isCheckingInThis =
                   checkInMutation.isPending && checkInMutation.variables?.id === appt.id;
-                const isCancelled = appt.status === "cancelled";
+                const isToday = appt.appointment_date === todayStr;
 
                 return (
                   <Card
@@ -421,16 +489,30 @@ function ReceptionPage() {
                       <div className="space-y-4">
                         {/* Encabezado: Código de orden y Badges de estado / asistencia */}
                         <div className="flex flex-wrap items-center justify-between gap-2">
-                          <Badge
-                            variant="outline"
-                            className="gap-1.5 font-mono text-xs font-semibold"
-                          >
-                            <Hash className="size-3.5 text-primary" />
-                            {appt.orderCode}
-                          </Badge>
+                          <div className="flex items-center gap-1.5">
+                            <Badge
+                              variant="outline"
+                              className="gap-1.5 font-mono text-xs font-semibold"
+                            >
+                              <Hash className="size-3.5 text-primary" />
+                              {appt.orderCode}
+                            </Badge>
+                            {isToday && !isCancelled && (
+                              <Badge className="bg-primary/15 text-primary hover:bg-primary/20 border-primary/30 text-[11px]">
+                                Hoy
+                              </Badge>
+                            )}
+                          </div>
 
                           <div className="flex flex-wrap items-center gap-1.5">
-                            {isCheckedIn ? (
+                            {isCancelled ? (
+                              <Badge
+                                variant="outline"
+                                className="border-destructive/30 bg-destructive/10 font-semibold text-destructive"
+                              >
+                                Cita Cancelada
+                              </Badge>
+                            ) : isCheckedIn ? (
                               <>
                                 <Badge
                                   variant="outline"
@@ -443,13 +525,6 @@ function ReceptionPage() {
                                   En sala de espera
                                 </Badge>
                               </>
-                            ) : isCancelled ? (
-                              <Badge
-                                variant="outline"
-                                className="border-destructive/30 bg-destructive/10 text-destructive"
-                              >
-                                Cita Cancelada
-                              </Badge>
                             ) : (
                               <Badge
                                 variant="outline"
@@ -515,25 +590,38 @@ function ReceptionPage() {
 
                       {/* Acción de Check-In en Sala */}
                       <div className="border-t border-border pt-4">
-                        {isCheckedIn ? (
-                          <div className="flex items-center justify-between rounded-lg bg-success-soft/70 px-3.5 py-2.5 text-xs font-semibold text-success">
-                            <span className="flex items-center gap-2">
-                              <CheckCircle2 className="size-4 shrink-0" />
-                              Asistencia Confirmada · En sala de espera
+                        {isCancelled ? (
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            disabled
+                            className="w-full cursor-not-allowed gap-2 bg-muted text-muted-foreground opacity-60"
+                          >
+                            <Ban className="size-4" />
+                            Cita Cancelada
+                          </Button>
+                        ) : isCheckedIn ? (
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            disabled
+                            className="w-full cursor-not-allowed gap-2 border border-success/30 bg-success-soft/70 font-semibold text-success opacity-90"
+                          >
+                            <CheckCircle2 className="size-4 shrink-0" />
+                            <span>
+                              Asistencia ya confirmada
+                              {appt.checked_in_at
+                                ? ` (${format(parseISO(appt.checked_in_at), "HH:mm 'hrs'", {
+                                    locale: es,
+                                  })})`
+                                : ""}
                             </span>
-                            {appt.checked_in_at && (
-                              <span>
-                                {format(parseISO(appt.checked_in_at), "HH:mm 'hrs'", {
-                                  locale: es,
-                                })}
-                              </span>
-                            )}
-                          </div>
+                          </Button>
                         ) : (
                           <Button
                             type="button"
                             className="w-full gap-2 bg-success text-success-foreground hover:bg-success/90"
-                            disabled={isCheckingInThis || isCancelled}
+                            disabled={isCheckingInThis}
                             onClick={() => checkInMutation.mutate(appt)}
                           >
                             <UserCheck className="size-4" />
