@@ -16,10 +16,10 @@ import { Route as BuscarCitasRouteImport } from './routes/buscar-citas'
 import { Route as MedicosRouteImport } from './routes/medicos'
 import { Route as PortalProfesionalRouteImport } from './routes/portal-profesional'
 import { Route as RecepcionRouteImport } from './routes/recepcion'
-import { Route as AdminDoctoresRouteImport } from './routes/admin/doctores'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedMiAgendaRouteImport } from './routes/_authenticated/mi-agenda'
 import { Route as AuthenticatedPerfilRouteImport } from './routes/_authenticated/perfil'
+import { Route as AdminDoctoresRouteImport } from './routes/admin/doctores'
 import { Route as AuthenticatedDoctorCitasRouteImport } from './routes/_authenticated/doctor/citas'
 import { Route as AuthenticatedDoctorDisponibilidadRouteImport } from './routes/_authenticated/doctor/disponibilidad'
 
@@ -57,11 +57,6 @@ const RecepcionRoute = RecepcionRouteImport.update({
   path: '/recepcion',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminDoctoresRoute = AdminDoctoresRouteImport.update({
-  id: '/admin/doctores',
-  path: '/admin/doctores',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   id: '/admin',
   path: '/admin',
@@ -76,6 +71,11 @@ const AuthenticatedPerfilRoute = AuthenticatedPerfilRouteImport.update({
   id: '/perfil',
   path: '/perfil',
   getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AdminDoctoresRoute = AdminDoctoresRouteImport.update({
+  id: '/admin/doctores',
+  path: '/admin/doctores',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedDoctorCitasRoute =
   AuthenticatedDoctorCitasRouteImport.update({
@@ -97,10 +97,10 @@ export interface FileRoutesByFullPath {
   '/medicos': typeof MedicosRoute
   '/portal-profesional': typeof PortalProfesionalRoute
   '/recepcion': typeof RecepcionRoute
-  '/admin/doctores': typeof AdminDoctoresRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/mi-agenda': typeof AuthenticatedMiAgendaRoute
   '/perfil': typeof AuthenticatedPerfilRoute
+  '/admin/doctores': typeof AdminDoctoresRoute
   '/doctor/citas': typeof AuthenticatedDoctorCitasRoute
   '/doctor/disponibilidad': typeof AuthenticatedDoctorDisponibilidadRoute
 }
@@ -111,10 +111,10 @@ export interface FileRoutesByTo {
   '/medicos': typeof MedicosRoute
   '/portal-profesional': typeof PortalProfesionalRoute
   '/recepcion': typeof RecepcionRoute
-  '/admin/doctores': typeof AdminDoctoresRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/mi-agenda': typeof AuthenticatedMiAgendaRoute
   '/perfil': typeof AuthenticatedPerfilRoute
+  '/admin/doctores': typeof AdminDoctoresRoute
   '/doctor/citas': typeof AuthenticatedDoctorCitasRoute
   '/doctor/disponibilidad': typeof AuthenticatedDoctorDisponibilidadRoute
 }
@@ -127,10 +127,10 @@ export interface FileRoutesById {
   '/medicos': typeof MedicosRoute
   '/portal-profesional': typeof PortalProfesionalRoute
   '/recepcion': typeof RecepcionRoute
-  '/admin/doctores': typeof AdminDoctoresRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/mi-agenda': typeof AuthenticatedMiAgendaRoute
   '/_authenticated/perfil': typeof AuthenticatedPerfilRoute
+  '/admin/doctores': typeof AdminDoctoresRoute
   '/_authenticated/doctor/citas': typeof AuthenticatedDoctorCitasRoute
   '/_authenticated/doctor/disponibilidad': typeof AuthenticatedDoctorDisponibilidadRoute
 }
@@ -143,10 +143,10 @@ export interface FileRouteTypes {
     | '/medicos'
     | '/portal-profesional'
     | '/recepcion'
-    | '/admin/doctores'
     | '/admin'
     | '/mi-agenda'
     | '/perfil'
+    | '/admin/doctores'
     | '/doctor/citas'
     | '/doctor/disponibilidad'
   fileRoutesByTo: FileRoutesByTo
@@ -157,10 +157,10 @@ export interface FileRouteTypes {
     | '/medicos'
     | '/portal-profesional'
     | '/recepcion'
-    | '/admin/doctores'
     | '/admin'
     | '/mi-agenda'
     | '/perfil'
+    | '/admin/doctores'
     | '/doctor/citas'
     | '/doctor/disponibilidad'
   id:
@@ -172,10 +172,10 @@ export interface FileRouteTypes {
     | '/medicos'
     | '/portal-profesional'
     | '/recepcion'
-    | '/admin/doctores'
     | '/_authenticated/admin'
     | '/_authenticated/mi-agenda'
     | '/_authenticated/perfil'
+    | '/admin/doctores'
     | '/_authenticated/doctor/citas'
     | '/_authenticated/doctor/disponibilidad'
   fileRoutesById: FileRoutesById
@@ -242,13 +242,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RecepcionRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin/doctores': {
-      id: '/admin/doctores'
-      path: '/admin/doctores'
-      fullPath: '/admin/doctores'
-      preLoaderRoute: typeof AdminDoctoresRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/_authenticated/admin': {
       id: '/_authenticated/admin'
       path: '/admin'
@@ -269,6 +262,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/perfil'
       preLoaderRoute: typeof AuthenticatedPerfilRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/admin/doctores': {
+      id: '/admin/doctores'
+      path: '/admin/doctores'
+      fullPath: '/admin/doctores'
+      preLoaderRoute: typeof AdminDoctoresRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/doctor/citas': {
       id: '/_authenticated/doctor/citas'

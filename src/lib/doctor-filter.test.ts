@@ -314,9 +314,11 @@ describe("doctor-filter: getSpecialtyCounts, getCityCounts and formatFeeCLP", ()
     expect(cities["Valparaíso"]).toBe(1);
   });
 
-  test("formats fees as CLP string with dot thousand separators", () => {
+  test("formats fees as CLP string with dot thousand separators and handles null/undefined safely", () => {
     expect(formatFeeCLP(35000)).toBe("$35.000");
     expect(formatFeeCLP(0)).toBe("$0");
+    expect(formatFeeCLP(null)).toBe("$0");
+    expect(formatFeeCLP(undefined)).toBe("$0");
     expect(formatFeeCLP(1250000)).toBe("$1.250.000");
   });
 });

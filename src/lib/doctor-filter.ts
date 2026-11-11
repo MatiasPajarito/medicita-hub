@@ -36,7 +36,8 @@ export function normalizeText(text: string): string {
 /**
  * Removes medical prefixes (Dr., Dra., Doctor, Doctora) for clean alphabetical sorting.
  */
-export function cleanNameForSorting(name: string): string {
+export function cleanNameForSorting(name?: string | null): string {
+  if (!name) return "";
   return name.replace(/^(dra?\.?|doctora?)\s+/i, "").trim();
 }
 
@@ -45,13 +46,13 @@ export function cleanNameForSorting(name: string): string {
  * Handles "all", "todas", case-insensitivity, and accent-insensitivity.
  */
 export function matchesSpecialty(
-  doctor: { specialty: string },
+  doctor: { specialty?: string | null | undefined },
   targetSpecialty?: string,
 ): boolean {
   if (!targetSpecialty || targetSpecialty === "all" || targetSpecialty === "todas") {
     return true;
   }
-  return normalizeText(doctor.specialty) === normalizeText(targetSpecialty);
+  return normalizeText(doctor.specialty ?? "") === normalizeText(targetSpecialty);
 }
 
 /**
@@ -75,8 +76,8 @@ export function matchesCity(
  */
 export function matchesSearchTerm(
   doctor: {
-    full_name: string;
-    specialty: string;
+    full_name?: string | null | undefined;
+    specialty?: string | null | undefined;
     bio?: string | null | undefined;
     city?: string | null | undefined;
   },
@@ -89,7 +90,7 @@ export function matchesSearchTerm(
   const terms = normalizeText(searchTerm).split(/\s+/).filter(Boolean);
   if (terms.length === 0) return true;
 
-  const searchableText = `${normalizeText(doctor.full_name)} ${normalizeText(doctor.specialty)} ${normalizeText(doctor.city ?? "")} ${normalizeText(doctor.bio ?? "")}`;
+  const searchableText = `${normalizeText(doctor.full_name ?? "")} ${normalizeText(doctor.specialty ?? "")} ${normalizeText(doctor.city ?? "")} ${normalizeText(doctor.bio ?? "")}`;
 
   return terms.every((term) => searchableText.includes(term));
 }
@@ -98,14 +99,15 @@ export function matchesSearchTerm(
  * Checks if a doctor's consultation fee is within specified bounds.
  */
 export function matchesFeeRange(
-  doctor: { consultation_fee: number },
+  doctor: { consultation_fee?: number | null | undefined },
   minFee?: number,
   maxFee?: number,
 ): boolean {
-  if (minFee !== undefined && !Number.isNaN(minFee) && doctor.consultation_fee < minFee) {
+  const fee = Number(doctor.consultation_fee ?? 0);
+  if (minFee !== undefined && !Number.isNaN(minFee) && fee < minFee) {
     return false;
   }
-  if (maxFee !== undefined && !Number.isNaN(maxFee) && doctor.consultation_fee > maxFee) {
+  if (maxFee !== undefined && !Number.isNaN(maxFee) && fee > maxFee) {
     return false;
   }
   return true;
@@ -152,9 +154,13 @@ export function sortDoctors<T extends FilterableDoctor>(
         return nameB.localeCompare(nameA, "es", { sensitivity: "base" });
       });
     case "fee-asc":
-      return copy.sort((a, b) => a.consultation_fee - b.consultation_fee);
+      return copy.sort(
+        (a, b) => Number(a.consultation_fee ?? 0) - Number(b.consultation_fee ?? 0),
+      );
     case "fee-desc":
-      return copy.sort((a, b) => b.consultation_fee - a.consultation_fee);
+      return copy.sort(
+        (a, b) => Number(b.consultation_fee ?? 0) - Number(a.consultation_fee ?? 0),
+      );
     case "default":
     default:
       return copy;
@@ -204,6 +210,8 @@ export function getCityCounts(
 /**
  * Formats a fee in Chilean Pesos (CLP).
  */
-export function formatFeeCLP(fee: number): string {
-  return `$${fee.toLocaleString("es-CL")}`;
+export function formatFeeCLP(fee?: number | null | undefined): string {
+  const numericFee = Number(fee ?? 0);
+  if (!Number.isFinite(numericFee)) return "$0";
+  return `$${numericFee.toLocaleString("es-CL")}`;
 }

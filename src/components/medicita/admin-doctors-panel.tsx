@@ -54,7 +54,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { doctorSchema, specialties, type DoctorInput } from "@/lib/clinical-schemas";
-import { defaultCities, formatFeeCLP } from "@/lib/doctor-filter";
+import { defaultCities } from "@/lib/doctor-filter";
 import { supabase } from "@/lib/supabase";
 
 export interface AdminDoctorRow {
@@ -64,9 +64,21 @@ export interface AdminDoctorRow {
   city: string;
   bio: string;
   photo_url: string | null;
-  consultation_fee: number;
+  consultation_fee: number | null;
+  price?: number | null | undefined;
+  rating?: number | null | undefined;
   is_active: boolean;
   user_id: string | null;
+}
+
+function formatSafeDoctorFee(doctor: {
+  consultation_fee?: number | null | undefined;
+  price?: number | null | undefined;
+}): string {
+  const raw = doctor.consultation_fee ?? doctor.price ?? 0;
+  const num = Number(raw);
+  if (!Number.isFinite(num)) return "$0";
+  return `$${num.toLocaleString("es-CL")}`;
 }
 
 function translateDeleteDoctorError(error: unknown): string {
@@ -103,17 +115,37 @@ export function AdminDoctorsPanel() {
         throw new Error(error.message);
       }
 
-      return (data ?? []).map((row) => ({
-        id: row.id,
-        full_name: row.full_name,
-        specialty: row.specialty,
-        city: row.city?.trim() ? row.city.trim() : "Santiago",
-        bio: row.bio,
-        photo_url: row.photo_url,
-        consultation_fee: row.consultation_fee,
-        is_active: row.is_active,
-        user_id: row.user_id,
-      }));
+      const rawRows = (data ?? []) as unknown as Array<Record<string, unknown>>;
+
+      return rawRows.map((row) => {
+        const rawFee = row["consultation_fee"] ?? row["price"] ?? 0;
+        const parsedFee = Number(rawFee);
+        const rawPrice = row["price"];
+        const rawRating = row["rating"];
+
+        return {
+          id: typeof row["id"] === "string" ? row["id"] : "",
+          full_name:
+            typeof row["full_name"] === "string" && row["full_name"].trim().length > 0
+              ? row["full_name"].trim()
+              : "Profesional sin nombre",
+          specialty:
+            typeof row["specialty"] === "string" && row["specialty"].trim().length > 0
+              ? row["specialty"].trim()
+              : "Medicina General",
+          city:
+            typeof row["city"] === "string" && row["city"].trim().length > 0
+              ? row["city"].trim()
+              : "Santiago",
+          bio: typeof row["bio"] === "string" ? row["bio"] : "",
+          photo_url: typeof row["photo_url"] === "string" ? row["photo_url"] : null,
+          consultation_fee: Number.isFinite(parsedFee) ? parsedFee : 0,
+          price: typeof rawPrice === "number" && Number.isFinite(rawPrice) ? rawPrice : null,
+          rating: typeof rawRating === "number" && Number.isFinite(rawRating) ? rawRating : null,
+          is_active: row["is_active"] !== false,
+          user_id: typeof row["user_id"] === "string" ? row["user_id"] : null,
+        };
+      });
     },
   });
 
@@ -444,12 +476,14 @@ export function AdminDoctorsPanel() {
                       <div className="min-w-0 space-y-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <h2 className="text-base font-bold text-foreground">
-                            {doctor.full_name}
+                            {doctor.full_name || "Profesional sin nombre"}
                           </h2>
-                          <Badge variant="secondary">{doctor.specialty}</Badge>
+                          <Badge variant="secondary">
+                            {doctor.specialty || "Medicina General"}
+                          </Badge>
                           <Badge variant="outline" className="gap-1 text-xs">
                             <MapPin className="size-3 text-primary" />
-                            {doctor.city}
+                            {doctor.city || "Santiago"}
                           </Badge>
                           <Badge
                             variant="outline"
@@ -463,7 +497,7 @@ export function AdminDoctorsPanel() {
                           </Badge>
                         </div>
                         <p className="line-clamp-1 text-sm text-muted-foreground">
-                          {doctor.bio}
+                          {doctor.bio || "Sin biografía registrada"}
                         </p>
                       </div>
                     </div>
@@ -474,7 +508,7 @@ export function AdminDoctorsPanel() {
                           Tarifa consulta
                         </p>
                         <p className="text-sm font-extrabold text-foreground">
-                          {formatFeeCLP(doctor.consultation_fee)}
+                          {formatSafeDoctorFee(doctor)}
                         </p>
                       </div>
 

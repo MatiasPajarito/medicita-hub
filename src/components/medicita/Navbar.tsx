@@ -11,6 +11,7 @@ import {
   Stethoscope,
   UserRound,
   X,
+  type LucideIcon,
 } from "lucide-react";
 import { useState } from "react";
 import { MediCitaLogo } from "@/components/common/MediCitaLogo";
@@ -21,27 +22,75 @@ import { clearCachedRoleData, useUserRole } from "@/hooks/useUserRole";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 
-const patientNavItems = [
-  { to: "/" as const, label: "Inicio", mobileLabel: "Inicio", icon: Home },
-  { to: "/medicos" as const, label: "Profesionales", mobileLabel: "Profesionales", icon: Stethoscope },
-  { to: "/mi-agenda" as const, label: "Mi agenda", mobileLabel: "Mis citas", icon: CalendarDays },
+type NavItem = {
+  to: "/" | "/medicos" | "/mi-agenda" | "/doctor/citas" | "/doctor/disponibilidad" | "/admin/doctores" | "/recepcion";
+  label: string;
+  mobileLabel: string;
+  icon: LucideIcon;
+};
+
+const patientNavItems: NavItem[] = [
+  { to: "/", label: "Inicio", mobileLabel: "Inicio", icon: Home },
+  { to: "/medicos", label: "Profesionales", mobileLabel: "Profesionales", icon: Stethoscope },
+  { to: "/mi-agenda", label: "Mi agenda", mobileLabel: "Mis citas", icon: CalendarDays },
 ];
 
-const doctorNavItems = [
-  { to: "/" as const, label: "Inicio", mobileLabel: "Inicio", icon: Home },
+const doctorNavItems: NavItem[] = [
   {
-    to: "/doctor/citas" as const,
+    to: "/doctor/citas",
     label: "Citas de Pacientes",
     mobileLabel: "Pacientes",
     icon: CalendarDays,
   },
   {
-    to: "/doctor/disponibilidad" as const,
+    to: "/doctor/disponibilidad",
     label: "Mi disponibilidad",
     mobileLabel: "Horarios",
     icon: CalendarClock,
   },
 ];
+
+const adminNavItems: NavItem[] = [
+  {
+    to: "/admin/doctores",
+    label: "Gestión Médica",
+    mobileLabel: "Gestión Médica",
+    icon: ShieldCheck,
+  },
+  {
+    to: "/recepcion",
+    label: "Recepción",
+    mobileLabel: "Recepción",
+    icon: ClipboardCheck,
+  },
+];
+
+const recepcionNavItems: NavItem[] = [
+  {
+    to: "/recepcion",
+    label: "Recepción",
+    mobileLabel: "Recepción",
+    icon: ClipboardCheck,
+  },
+];
+
+function resolveNavItemsByRole({
+  signedIn,
+  isAdmin,
+  isRecepcion,
+  isDoctor,
+}: {
+  signedIn: boolean;
+  isAdmin: boolean;
+  isRecepcion: boolean;
+  isDoctor: boolean;
+}): NavItem[] {
+  if (!signedIn) return patientNavItems;
+  if (isAdmin) return adminNavItems;
+  if (isRecepcion) return recepcionNavItems;
+  if (isDoctor) return doctorNavItems;
+  return patientNavItems;
+}
 
 function HeaderLogo() {
   return (
@@ -55,9 +104,9 @@ export function Navbar() {
   const [open, setOpen] = useState(false);
   const {
     signedIn,
-    isDoctor,
     isAdmin,
     isRecepcion,
+    isDoctor,
     doctorDisplayName,
     loading,
     isAuthReady,
@@ -66,30 +115,12 @@ export function Navbar() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const baseNavItems = isDoctor ? doctorNavItems : patientNavItems;
-  const activeNavItems = [
-    ...baseNavItems,
-    ...(isRecepcion || isAdmin
-      ? [
-          {
-            to: "/recepcion" as const,
-            label: "Recepción",
-            mobileLabel: "Recepción",
-            icon: ClipboardCheck,
-          },
-        ]
-      : []),
-    ...(isAdmin
-      ? [
-          {
-            to: "/admin/doctores" as const,
-            label: "Gestión Médica",
-            mobileLabel: "Admin",
-            icon: ShieldCheck,
-          },
-        ]
-      : []),
-  ];
+  const activeNavItems = resolveNavItemsByRole({
+    signedIn,
+    isAdmin,
+    isRecepcion,
+    isDoctor,
+  });
 
   async function signOut() {
     clearCachedRoleData();
@@ -99,17 +130,25 @@ export function Navbar() {
     await navigate({ to: "/acceso", search: { redirect: "/", mode: "login" }, replace: true });
   }
 
+  const roleBadgeLabel = isAdmin
+    ? "Admin"
+    : isRecepcion
+      ? "Recepción"
+      : isDoctor
+        ? "Médico"
+        : null;
+
   return (
     <header className="sticky top-0 z-40 border-b border-border/80 bg-background/95 backdrop-blur">
       <div className="mx-auto flex h-17 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <div className="flex items-center gap-3">
           <HeaderLogo />
-          {isAuthReady && isDoctor && (
+          {isAuthReady && signedIn && roleBadgeLabel && (
             <Badge
               variant="secondary"
               className="hidden border-primary/25 bg-clinical-soft text-xs font-bold text-primary transition-opacity duration-300 sm:inline-flex"
             >
-              Médico
+              {roleBadgeLabel}
             </Badge>
           )}
         </div>
@@ -117,8 +156,7 @@ export function Navbar() {
         <nav className="hidden items-center gap-1 lg:flex" aria-label="Navegación principal">
           {loading || !isAuthReady ? (
             <div className="flex items-center gap-2 transition-opacity duration-300">
-              <Skeleton className="h-9 w-16 rounded-md" />
-              <Skeleton className="h-9 w-28 rounded-md" />
+              <Skeleton className="h-9 w-24 rounded-md" />
               <Skeleton className="h-9 w-28 rounded-md" />
             </div>
           ) : (
@@ -152,7 +190,17 @@ export function Navbar() {
             <div className="flex items-center gap-2 animate-in fade-in duration-200">
               <Button asChild className="gap-2">
                 <Link to="/perfil">
-                  {isDoctor ? (
+                  {isAdmin ? (
+                    <>
+                      <ShieldCheck className="size-4" />
+                      <span>Panel Admin</span>
+                    </>
+                  ) : isRecepcion ? (
+                    <>
+                      <ClipboardCheck className="size-4" />
+                      <span>Mostrador</span>
+                    </>
+                  ) : isDoctor ? (
                     <>
                       <Stethoscope className="size-4" />
                       <span>{doctorDisplayName || "Portal Médico"}</span>
@@ -235,16 +283,26 @@ export function Navbar() {
                   className="mt-1 flex items-center justify-between rounded-md bg-primary px-3 py-3 text-sm font-medium text-primary-foreground"
                 >
                   <span className="flex items-center gap-3">
-                    {isDoctor ? (
+                    {isAdmin ? (
+                      <ShieldCheck className="size-4" />
+                    ) : isRecepcion ? (
+                      <ClipboardCheck className="size-4" />
+                    ) : isDoctor ? (
                       <Stethoscope className="size-4" />
                     ) : (
                       <UserRound className="size-4" />
                     )}
-                    {isDoctor ? doctorDisplayName || "Portal Médico" : "Mi perfil"}
+                    {isAdmin
+                      ? "Panel Admin"
+                      : isRecepcion
+                        ? "Mostrador"
+                        : isDoctor
+                          ? doctorDisplayName || "Portal Médico"
+                          : "Mi perfil"}
                   </span>
-                  {isDoctor && (
+                  {roleBadgeLabel && (
                     <span className="rounded bg-primary-foreground/20 px-1.5 py-0.5 text-[10px] font-extrabold uppercase">
-                      Médico
+                      {roleBadgeLabel}
                     </span>
                   )}
                 </Link>
@@ -288,13 +346,18 @@ export function Navbar() {
 }
 
 export function MobileBottomNav() {
-  const { signedIn, isDoctor, loading, isAuthReady } = useUserRole();
+  const { signedIn, isAdmin, isRecepcion, isDoctor, loading, isAuthReady } = useUserRole();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
-  const activeNavItems = isDoctor ? doctorNavItems : patientNavItems;
+  const activeNavItems = resolveNavItemsByRole({
+    signedIn,
+    isAdmin,
+    isRecepcion,
+    isDoctor,
+  });
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-40 grid h-16 grid-cols-4 border-t border-border bg-background/95 px-1 backdrop-blur sm:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 flex h-16 items-center justify-around border-t border-border bg-background/95 px-1 backdrop-blur sm:hidden"
       aria-label="Navegación inferior"
     >
       {activeNavItems.map(({ to, mobileLabel, icon: Icon }) => {
@@ -304,7 +367,7 @@ export function MobileBottomNav() {
             key={to}
             to={to}
             className={cn(
-              "flex flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors",
+              "flex flex-1 flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors",
               active ? "text-primary font-semibold" : "text-muted-foreground",
             )}
           >
@@ -314,7 +377,7 @@ export function MobileBottomNav() {
         );
       })}
       {loading || !isAuthReady ? (
-        <div className="flex flex-col items-center justify-center gap-1">
+        <div className="flex flex-1 flex-col items-center justify-center gap-1">
           <Skeleton className="size-5 rounded-full" />
           <Skeleton className="h-2.5 w-10 rounded" />
         </div>
@@ -322,19 +385,33 @@ export function MobileBottomNav() {
         <Link
           to="/perfil"
           className={cn(
-            "flex flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors",
+            "flex flex-1 flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors",
             pathname === "/perfil" ? "text-primary font-semibold" : "text-muted-foreground",
           )}
         >
-          {isDoctor ? <Stethoscope className="size-5" /> : <UserRound className="size-5" />}
-          {isDoctor ? "Portal Médico" : "Perfil"}
+          {isAdmin ? (
+            <ShieldCheck className="size-5" />
+          ) : isRecepcion ? (
+            <ClipboardCheck className="size-5" />
+          ) : isDoctor ? (
+            <Stethoscope className="size-5" />
+          ) : (
+            <UserRound className="size-5" />
+          )}
+          {isAdmin
+            ? "Admin"
+            : isRecepcion
+              ? "Mostrador"
+              : isDoctor
+                ? "Portal Médico"
+                : "Perfil"}
         </Link>
       ) : (
         <Link
           to="/acceso"
           search={{ redirect: "/", mode: "login" }}
           className={cn(
-            "flex flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors",
+            "flex flex-1 flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors",
             pathname === "/acceso" ? "text-primary font-semibold" : "text-muted-foreground",
           )}
         >

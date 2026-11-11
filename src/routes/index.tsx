@@ -1,4 +1,5 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect } from "react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
   CalendarDays,
   CheckCircle2,
@@ -12,10 +13,10 @@ import {
   Video,
 } from "lucide-react";
 import { MediCitaIcon } from "@/components/common/MediCitaLogo";
-import { DoctorDashboardView } from "@/components/medicita/DoctorDashboardView";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useUserRole } from "@/hooks/useUserRole";
 
 export const Route = createFileRoute("/")({
@@ -47,10 +48,34 @@ const specialties = [
 ];
 
 function HomePage() {
-  const { signedIn, isDoctor, doctorData, email, loading } = useUserRole();
+  const navigate = useNavigate();
+  const { signedIn, isAdmin, isRecepcion, isDoctor, loading, isAuthReady } = useUserRole();
 
-  if (signedIn && isDoctor) {
-    return <DoctorDashboardView doctorData={doctorData} email={email} />;
+  const redirectTarget = signedIn
+    ? isAdmin
+      ? ("/admin/doctores" as const)
+      : isRecepcion
+        ? ("/recepcion" as const)
+        : isDoctor
+          ? ("/doctor/citas" as const)
+          : null
+    : null;
+
+  useEffect(() => {
+    if (!isAuthReady || !redirectTarget) return;
+    void navigate({ to: redirectTarget, replace: true });
+  }, [isAuthReady, redirectTarget, navigate]);
+
+  if (redirectTarget) {
+    return (
+      <div className="mx-auto max-w-7xl space-y-6 px-4 py-12 sm:px-6 lg:px-8">
+        <Skeleton className="h-10 w-72 rounded-lg" />
+        <div className="grid gap-4 md:grid-cols-2">
+          <Skeleton className="h-48 w-full rounded-xl" />
+          <Skeleton className="h-48 w-full rounded-xl" />
+        </div>
+      </div>
+    );
   }
 
   return (
