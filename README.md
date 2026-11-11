@@ -39,13 +39,13 @@ El proyecto se rige por la pauta oficial de 20 requerimientos priorizados bajo m
 | **05** | Funcional | Reserva de cita en tiempo real con bloqueo optimista de slot | Must | Sprint 2 | ✅ Completado |
 | **06** | Funcional | Reagendar y cancelar citas con política de aviso mínimo | Must | Sprint 2 | ✅ Completado |
 | **07** | Funcional | Recordatorios automáticos por SMS y email (24 h y 2 h antes) | Must | Sprint 3 | 🔄 En Proceso |
-| **08** | Funcional | Ficha de paciente con notas de consulta (accesible solo por profesional) | Must | Sprint 3 | 🔄 En Proceso |
+| **08** | Funcional | Ficha de paciente con notas de consulta (accesible solo por profesional) | Must | Sprint 3 | ✅ Completado |
 | **09** | Funcional | Videoconsulta integrada (WebRTC o Jitsi/Meet embed) | Must | Sprint 3 | ⏳ Pendiente |
 | **10** | Funcional | Panel de administración con reportes de ocupación y no-shows | Must | Sprint 4 | ⏳ Pendiente |
 | **11** | No funcional | Cumplimiento normativo local de protección de datos de salud | Must | Sprint 4 | ⏳ Pendiente |
 | **12** | No funcional | Disponibilidad $\ge$ 99% durante horario 06:00-22:00 | Must | Sprint 4 | ⏳ Pendiente |
 | **13** | No funcional | Backups automáticos diarios con retención 30 días | Should | Sprint 5 | ⏳ Pendiente |
-| **14** | Seguridad | Roles diferenciados: paciente, profesional, recepción, admin | Should | Sprint 5 | 🔄 En Proceso |
+| **14** | Seguridad | Roles diferenciados: paciente, profesional, recepción, admin | Should | Sprint 5 | ✅ Completado |
 | **15** | Seguridad | Cifrado de datos clínicos y logs de acceso a fichas | Should | Sprint 5 | ⏳ Pendiente |
 | **16** | UX/UI | Flujo de reserva en máximo 3 pasos; accesible AA | Should | Sprint 6 | ⏳ Pendiente |
 | **17** | Integración | Integración con Twilio (SMS) y SendGrid (email) | Should | Sprint 6 | ⏳ Pendiente |
