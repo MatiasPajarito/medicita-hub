@@ -1,9 +1,13 @@
 import { useEffect } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { format, parseISO } from "date-fns";
+import { es } from "date-fns/locale";
 import {
   CalendarDays,
   CheckCircle2,
   ChevronRight,
+  Clock3,
   FileHeart,
   HeartPulse,
   MapPin,
@@ -18,6 +22,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUserRole } from "@/hooks/useUserRole";
+import { activeStatuses, isUpcoming } from "@/lib/appointments";
+import { clinicNow } from "@/lib/booking";
+import { supabase } from "@/lib/supabase";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -49,7 +56,7 @@ const specialties = [
 
 function HomePage() {
   const navigate = useNavigate();
-  const { signedIn, isAdmin, isRecepcion, isDoctor, loading, isAuthReady } = useUserRole();
+  const { signedIn, userId, isAdmin, isRecepcion, isDoctor, loading, isAuthReady } = useUserRole();
 
   const redirectTarget = signedIn
     ? isAdmin
@@ -152,7 +159,7 @@ function HomePage() {
 
       <section className="border-y border-border bg-surface-subtle">
         <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-          <NextAppointmentSection signedIn={signedIn} isLoading={loading} />
+          <NextAppointmentSection signedIn={signedIn} userId={userId} isLoading={loading} />
         </div>
       </section>
 
@@ -191,14 +198,85 @@ function HomePage() {
   );
 }
 
+interface NextPatientAppointmentItem {
+  id: string;
+  appointment_date: string;
+  start_time: string;
+  end_time: string;
+  modality: string;
+  status: string;
+  doctorName: string;
+  specialty: string;
+}
+
+async function fetchNextPatientAppointment(
+  userId: string,
+): Promise<NextPatientAppointmentItem | null> {
+  const now = clinicNow();
+  const todayStr = format(now, "yyyy-MM-dd");
+
+  const { data: patientRow } = await supabase
+    .from("patients")
+    .select("id")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  const patientIds = Array.from(
+    new Set([patientRow?.id, userId].filter((id): id is string => Boolean(id))),
+  );
+
+  const { data, error } = await supabase
+    .from("appointments")
+    .select(
+      "id, patient_id, doctor_id, appointment_date, start_time, end_time, modality, status, doctors(full_name, specialty)",
+    )
+    .in("patient_id", patientIds)
+    .in("status", activeStatuses)
+    .gte("appointment_date", todayStr)
+    .order("appointment_date", { ascending: true })
+    .order("start_time", { ascending: true });
+
+  if (error || !data || data.length === 0) {
+    return null;
+  }
+
+  const nextRow = data.find((row) => isUpcoming(row, now)) ?? data[0];
+  if (!nextRow) return null;
+
+  const rawDoctor = Array.isArray(nextRow.doctors)
+    ? (nextRow.doctors[0] ?? null)
+    : nextRow.doctors;
+
+  return {
+    id: nextRow.id,
+    appointment_date: nextRow.appointment_date,
+    start_time: nextRow.start_time,
+    end_time: nextRow.end_time,
+    modality: nextRow.modality,
+    status: nextRow.status,
+    doctorName: rawDoctor?.full_name ?? "Profesional médico",
+    specialty: rawDoctor?.specialty ?? "Atención médica",
+  };
+}
+
 function NextAppointmentSection({
   signedIn,
+  userId,
   isLoading,
 }: {
   signedIn: boolean;
+  userId: string | null;
   isLoading: boolean;
 }) {
-  if (isLoading) return <div className="h-40 animate-pulse rounded-lg bg-muted/50" />;
+  const { data: nextAppointment, isLoading: isAppointmentLoading } = useQuery({
+    queryKey: ["appointments", "next-patient-appointment", userId],
+    queryFn: () => fetchNextPatientAppointment(userId!),
+    enabled: signedIn && Boolean(userId),
+  });
+
+  if (isLoading || (signedIn && isAppointmentLoading)) {
+    return <div className="h-40 animate-pulse rounded-lg bg-muted/50" />;
+  }
 
   if (!signedIn) {
     return (
@@ -225,6 +303,81 @@ function NextAppointmentSection({
             <Button asChild size="lg" variant="outline">
               <Link to="/acceso" search={{ redirect: "/", mode: "login" }}>
                 Iniciar sesión
+              </Link>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (nextAppointment) {
+    const isTelemedicine = nextAppointment.modality === "telemedicina";
+    const formattedDate = format(
+      parseISO(nextAppointment.appointment_date),
+      "EEEE d 'de' MMMM, yyyy",
+      { locale: es },
+    );
+    const timeRange = `${nextAppointment.start_time.slice(0, 5)} – ${nextAppointment.end_time.slice(0, 5)}`;
+
+    return (
+      <Card className="border-primary/30 bg-card shadow-clinical">
+        <CardContent className="flex flex-col gap-6 p-6 sm:p-8 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+            <span className="flex size-14 shrink-0 items-center justify-center rounded-xl bg-clinical-soft text-primary">
+              <CalendarDays className="size-7" />
+            </span>
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-xs font-bold uppercase tracking-wider text-primary">
+                  Tu próxima atención médica
+                </p>
+                <Badge
+                  variant="outline"
+                  className="border-success/30 bg-success-soft text-success"
+                >
+                  Confirmada
+                </Badge>
+                <Badge variant="outline" className="gap-1.5 py-0.5">
+                  {isTelemedicine ? (
+                    <Video className="size-3.5 text-primary" />
+                  ) : (
+                    <MapPin className="size-3.5 text-primary" />
+                  )}
+                  {isTelemedicine ? "Telemedicina" : "Presencial"}
+                </Badge>
+              </div>
+              <h2 className="text-xl font-bold text-foreground sm:text-2xl">
+                {nextAppointment.doctorName} ·{" "}
+                <span className="font-semibold text-muted-foreground">
+                  {nextAppointment.specialty}
+                </span>
+              </h2>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-muted-foreground">
+                <span className="flex items-center gap-1.5 capitalize text-foreground font-medium">
+                  <CalendarDays className="size-4 text-primary" />
+                  {formattedDate}
+                </span>
+                <span className="hidden text-muted-foreground sm:inline">·</span>
+                <span className="flex items-center gap-1.5 font-medium text-foreground">
+                  <Clock3 className="size-4 text-primary" />
+                  {timeRange}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex shrink-0 flex-wrap items-center gap-3">
+            <Button asChild size="lg" className="gap-2 font-bold shadow-clinical">
+              <Link to="/mi-agenda" search={{ tab: "upcoming" }}>
+                <CalendarDays className="size-4" />
+                Gestionar en Mi Agenda
+              </Link>
+            </Button>
+            <Button asChild size="lg" variant="outline" className="gap-2">
+              <Link to="/medicos">
+                <Stethoscope className="size-4" />
+                Agendar otra consulta
               </Link>
             </Button>
           </div>
