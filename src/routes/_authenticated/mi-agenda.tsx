@@ -494,13 +494,27 @@ function AppointmentCard({
           {!canModify && (
             <div
               role="note"
-              className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs font-medium text-amber-400"
+              className="flex items-start gap-2 rounded-md border border-amber-500/35 bg-amber-500/10 px-3 py-2 text-xs font-medium text-amber-800 dark:text-amber-300"
             >
               <AlertCircle className="mt-0.5 size-4 shrink-0" />
               <span>{MIN_NOTICE_MESSAGE}</span>
             </div>
           )}
           <div className="flex flex-wrap gap-2">
+            {telemedicine && (
+              <Button
+                asChild
+                className="min-h-11 w-full gap-1.5 font-semibold sm:w-auto"
+              >
+                <Link
+                  to="/videoconsulta/$appointmentId"
+                  params={{ appointmentId: appointment.id }}
+                >
+                  <Video className="size-4" aria-hidden="true" />
+                  Ingresar a videoconsulta
+                </Link>
+              </Button>
+            )}
             {onReschedule && (
               <span
                 title={!canModify ? MIN_NOTICE_MESSAGE : "Reagendar esta cita"}

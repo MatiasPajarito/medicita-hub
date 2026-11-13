@@ -127,14 +127,36 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <div className="min-h-screen bg-background text-foreground dark:bg-slate-950 dark:text-slate-100 flex flex-col antialiased selection:bg-primary/20 selection:text-primary">
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-primary-foreground focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-ring"
+        >
+          Saltar al contenido principal
+        </a>
         <Navbar />
 
         <main
+          id="main-content"
+          tabIndex={-1}
           key={currentPath}
-          className="route-transition flex-1 pb-20 animate-in fade-in duration-200 fill-mode-forwards ease-out sm:pb-0"
+          className="route-transition flex-1 pb-20 animate-in fade-in duration-200 fill-mode-forwards ease-out focus:outline-none sm:pb-0"
         >
           <Outlet />
         </main>
+
+        <footer className="border-t border-border bg-card/60 py-5 pb-24 text-xs text-muted-foreground sm:pb-5">
+          <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 sm:px-6">
+            <p>
+              MediCita · Plataforma de gestión clínica y telemedicina · Resguardo conforme a Ley N° 19.628, N° 20.584 y N° 21.668.
+            </p>
+            <Link
+              to="/privacidad"
+              className="font-semibold text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:rounded-sm"
+            >
+              Privacidad y Protección de Datos de Salud
+            </Link>
+          </div>
+        </footer>
 
         <MobileBottomNav />
         <Toaster position="top-right" richColors />

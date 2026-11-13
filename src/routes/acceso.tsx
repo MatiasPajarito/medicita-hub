@@ -7,11 +7,13 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MediCitaLogo } from "@/components/common/MediCitaLogo";
 import { isValidChileanRut, normalizeRut } from "@/lib/clinical-schemas";
+import { createHealthConsentRecord } from "@/lib/health-privacy";
 import { supabase } from "@/lib/supabase";
 
 export const Route = createFileRoute("/acceso")({
@@ -42,6 +44,12 @@ const signUpSchema = z.object({
     .refine((date) => new Date(`${date}T00:00:00`) <= new Date(), "La fecha no puede estar en el futuro"),
   email: z.string().trim().min(1, "Ingresa tu correo").email("Ingresa un correo válido").max(255),
   password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres").max(72),
+  acceptHealthPrivacy: z
+    .boolean()
+    .refine(
+      (val) => val === true,
+      "Debes aceptar el consentimiento de protección de datos de salud (Ley N° 19.628 y N° 20.584)",
+    ),
 });
 type SignUpInput = z.infer<typeof signUpSchema>;
 
@@ -53,7 +61,14 @@ function AccessPage() {
 
   const form = useForm<SignUpInput>({
     resolver: zodResolver(signUpSchema),
-    defaultValues: { full_name: "", rut_dni: "", birth_date: "", email: "", password: "" },
+    defaultValues: {
+      full_name: "",
+      rut_dni: "",
+      birth_date: "",
+      email: "",
+      password: "",
+      acceptHealthPrivacy: false,
+    },
   });
 
   const toggleMode = (targetMode: "login" | "registro") => {
@@ -85,10 +100,16 @@ function AccessPage() {
   async function signUp(data: SignUpInput) {
     setSubmitting(true);
     const rut = normalizeRut(data.rut_dni);
+    const consentRecord = createHealthConsentRecord(new Date(), true);
     const result = await supabase.auth.signUp({
       email: data.email,
       password: data.password,
-      options: { emailRedirectTo: `${window.location.origin}${redirect}` },
+      options: {
+        emailRedirectTo: `${window.location.origin}${redirect}`,
+        data: {
+          health_privacy_consent: consentRecord,
+        },
+      },
     });
     if (result.error) {
       setSubmitting(false);
@@ -226,6 +247,39 @@ function AccessPage() {
                           <Input className="h-11 pl-10" type="password" placeholder="Mínimo 6 caracteres" maxLength={72} {...field} />
                         </div>
                       </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="acceptHealthPrivacy"
+                  render={({ field }) => (
+                    <FormItem className="rounded-lg border border-border bg-surface-subtle/60 p-3">
+                      <div className="flex items-start gap-2.5">
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={(checked) => field.onChange(checked === true)}
+                            className="mt-0.5"
+                          />
+                        </FormControl>
+                        <div className="space-y-1">
+                          <FormLabel className="cursor-pointer text-xs font-semibold leading-snug text-foreground">
+                            Autorizo el tratamiento confidencial de mis datos de salud y telemedicina
+                          </FormLabel>
+                          <FormDescription className="text-xs leading-relaxed">
+                            Conforme a la Ley N° 19.628, N° 20.584 y N° 21.668 de Chile.{" "}
+                            <Link
+                              to="/privacidad"
+                              className="font-semibold text-primary underline underline-offset-2"
+                            >
+                              Leer política de privacidad
+                            </Link>
+                            .
+                          </FormDescription>
+                        </div>
+                      </div>
                       <FormMessage />
                     </FormItem>
                   )}

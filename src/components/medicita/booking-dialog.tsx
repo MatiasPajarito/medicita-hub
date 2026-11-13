@@ -6,11 +6,13 @@ import { es } from "date-fns/locale";
 import {
   CalendarCheck,
   CalendarDays,
+  Check,
   ChevronLeft,
   ChevronRight,
   Clock3,
   CreditCard,
   MapPin,
+  ShieldCheck,
   Video,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -40,6 +42,7 @@ import {
   type PublicDoctor,
 } from "@/lib/booking";
 import { formatFeeCLP } from "@/lib/doctor-filter";
+import { getBookingStepProgress } from "@/lib/booking-steps";
 import type { DayRule } from "@/lib/schedule";
 import type { PaymentReceipt } from "@/lib/payment-demo";
 import { supabase } from "@/lib/supabase";
@@ -144,12 +147,22 @@ function BookingPanel({
   // Candados contra doble clic (el estado de React llega tarde si se hace clic muy rápido).
   const savingRef = useRef(false);
   const startingRef = useRef(false);
+  const stepAnnouncementRef = useRef<HTMLDivElement | null>(null);
+  const stepProgress = useMemo(
+    () => getBookingStepProgress(step, doctor.consultation_fee),
+    [step, doctor.consultation_fee],
+  );
 
   const busy = saving || paying;
   useEffect(() => {
     onBusyChange(busy);
   }, [busy, onBusyChange]);
   useEffect(() => () => onBusyChange(false), [onBusyChange]);
+  useEffect(() => {
+    if (step !== "select") {
+      stepAnnouncementRef.current?.focus();
+    }
+  }, [step]);
 
   const user = useQuery({
     queryKey: ["booking-user"],
@@ -591,6 +604,58 @@ function BookingPanel({
         </DialogDescription>
       </DialogHeader>
 
+      <div
+        ref={stepAnnouncementRef}
+        tabIndex={-1}
+        className="space-y-2 focus:outline-none"
+      >
+        <p className="sr-only" role="status" aria-live="polite">
+          {stepProgress.announcement}
+        </p>
+        <nav aria-label="Pasos de la reserva" className="pt-1">
+          <ol
+            className={cn(
+              "grid gap-2",
+              stepProgress.totalSteps === 2 ? "grid-cols-2" : "grid-cols-3",
+            )}
+          >
+            {stepProgress.steps.map((item, idx) => {
+              const isCompleted = idx < stepProgress.currentIndex;
+              const isCurrent = idx === stepProgress.currentIndex;
+              return (
+                <li
+                  key={item.id}
+                  aria-current={isCurrent ? "step" : undefined}
+                  className={cn(
+                    "flex items-center gap-2 rounded-lg border px-2.5 py-2 text-xs font-medium transition-colors",
+                    isCurrent
+                      ? "border-primary bg-clinical-soft/75 text-foreground"
+                      : isCompleted
+                        ? "border-success/35 bg-success-soft/50 text-foreground"
+                        : "border-border bg-surface-subtle/40 text-muted-foreground",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "flex size-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold",
+                      isCurrent
+                        ? "bg-primary text-primary-foreground"
+                        : isCompleted
+                          ? "bg-success text-success-foreground"
+                          : "bg-muted text-foreground",
+                    )}
+                    aria-hidden="true"
+                  >
+                    {isCompleted ? <Check className="size-3" /> : item.number}
+                  </span>
+                  <span className="truncate">{item.shortLabel}</span>
+                </li>
+              );
+            })}
+          </ol>
+        </nav>
+      </div>
+
       <div className={cn("grid gap-5 pt-2", step !== "select" && "hidden")}>
         {/* 1. Selector de Fecha en Cinta Semanal Horizontal (Inspirado en estilo Bupa) */}
         <div className="space-y-3">
@@ -637,12 +702,12 @@ function BookingPanel({
                       setSlot("");
                     }}
                     className={cn(
-                      "flex flex-col items-center justify-center rounded-xl border px-1 py-2 text-center transition-all",
+                      "flex min-h-14 flex-col items-center justify-center rounded-xl border px-1 py-2 text-center transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                       isSelected
                         ? "border-primary bg-primary text-primary-foreground shadow-clinical ring-2 ring-primary/25"
                         : !isDisabled
                           ? "border-border bg-card text-foreground hover:border-primary/60 hover:bg-clinical-soft/60 cursor-pointer"
-                          : "border-border/50 bg-muted/40 text-muted-foreground opacity-45 cursor-not-allowed",
+                          : "border-border bg-muted text-muted-foreground cursor-not-allowed",
                     )}
                   >
                     <span
@@ -748,12 +813,12 @@ function BookingPanel({
                       setSlot(s.time);
                     }}
                     className={cn(
-                      "flex h-10 items-center justify-center rounded-full border px-3 text-sm font-semibold transition-all",
+                      "flex h-11 min-h-11 items-center justify-center rounded-full border px-3 text-sm font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                       !s.available
-                        ? "opacity-40 cursor-not-allowed line-through bg-slate-900 border-slate-800 text-slate-500"
+                        ? "cursor-not-allowed border-border bg-muted text-muted-foreground line-through"
                         : isSelectedSlot
                           ? "cursor-pointer border-primary bg-primary text-primary-foreground shadow-clinical ring-2 ring-primary/30"
-                          : "cursor-pointer border-primary/25 bg-clinical-soft/40 text-foreground hover:border-primary hover:bg-clinical-soft",
+                          : "cursor-pointer border-primary/35 bg-clinical-soft/45 text-foreground hover:border-primary hover:bg-clinical-soft",
                     )}
                   >
                     {s.time}
@@ -797,12 +862,29 @@ function BookingPanel({
         </div>
 
         {/* 3. Confirmación de Reserva */}
-        <div className="space-y-2 pt-1">
+        <div className="space-y-3 pt-1">
+          <div className="flex items-start gap-2 rounded-lg border border-border bg-surface-subtle/70 px-3 py-2.5 text-xs text-muted-foreground">
+            <ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
+            <p className="leading-relaxed">
+              {modality === "telemedicina"
+                ? "La videoconsulta cuenta con cifrado de extremo a extremo y resguardo clínico según la Ley N° 20.584 y N° 21.668. "
+                : "Tus datos clínicos se resguardan bajo secreto médico y la Ley N° 19.628 y N° 20.584. "}
+              <Link
+                to="/privacidad"
+                className="font-semibold text-primary underline underline-offset-2 hover:text-primary/80"
+              >
+                Política de datos de salud
+              </Link>
+              .
+            </p>
+          </div>
+
           <Button
             type="button"
             size="lg"
-            className="h-12 w-full text-base font-bold shadow-clinical"
+            className="h-12 min-h-12 w-full text-base font-bold shadow-clinical"
             disabled={!slot || saving}
+            aria-busy={saving}
             onClick={() => void startCheckout()}
           >
             {doctor.consultation_fee > 0 ? (

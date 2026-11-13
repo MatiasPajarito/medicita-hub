@@ -695,6 +695,21 @@ function DoctorAppointmentCard({
 
       {isActive && (
         <div className="mt-5 flex flex-wrap items-center gap-2.5 border-t border-border pt-4">
+          {telemedicine && (
+            <Button
+              asChild
+              size="sm"
+              className="min-h-10 w-full gap-1.5 font-semibold"
+            >
+              <Link
+                to="/videoconsulta/$appointmentId"
+                params={{ appointmentId: appointment.id }}
+              >
+                <Video className="size-4" aria-hidden="true" />
+                Iniciar videoconsulta
+              </Link>
+            </Button>
+          )}
           {existingNote ? (
             <Button
               type="button"

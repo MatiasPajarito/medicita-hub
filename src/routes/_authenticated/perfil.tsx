@@ -1,8 +1,8 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ContactRound, HeartPulse, Save, ShieldCheck } from "lucide-react";
-import { useEffect } from "react";
+import { ContactRound, Download, HeartPulse, LockKeyhole, Save, ShieldCheck } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { PageHeading } from "@/components/medicita/page-heading";
@@ -13,6 +13,13 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { bloodTypes, normalizeRut, patientSchema, type PatientInput } from "@/lib/clinical-schemas";
+import {
+  buildPatientDataExport,
+  buildPatientExportFilename,
+  createHealthConsentRecord,
+  extractHealthConsentFromMetadata,
+  revokeTelemedicineConsent,
+} from "@/lib/health-privacy";
 import { supabase } from "@/lib/supabase";
 import { ProfessionalProfile } from "@/components/medicita/professional-profile";
 import type { ProfessionalInput } from "@/lib/booking";
@@ -69,6 +76,140 @@ function ProfilePage() {
 
 function PatientProfile() {
   const queryClient = useQueryClient();
+  const [exportingData, setExportingData] = useState(false);
+  const [savingConsent, setSavingConsent] = useState(false);
+
+  const authUserQuery = useQuery({
+    queryKey: ["patient-auth-metadata"],
+    queryFn: async () => {
+      const { data, error } = await supabase.auth.getUser();
+      if (error || !data.user) return null;
+      return data.user;
+    },
+  });
+
+  const consentRecord = extractHealthConsentFromMetadata(
+    authUserQuery.data?.user_metadata as Record<string, unknown> | undefined,
+  );
+
+  async function handleAcceptConsent() {
+    setSavingConsent(true);
+    try {
+      const nextConsent = createHealthConsentRecord(new Date(), true);
+      const { error } = await supabase.auth.updateUser({
+        data: { health_privacy_consent: nextConsent },
+      });
+      if (error) throw error;
+      await authUserQuery.refetch();
+      toast.success("Consentimiento de datos de salud registrado.");
+    } catch {
+      toast.error("No pudimos registrar el consentimiento. Inténtalo de nuevo.");
+    } finally {
+      setSavingConsent(false);
+    }
+  }
+
+  async function handleRevokeTelemedicine() {
+    setSavingConsent(true);
+    try {
+      const nextConsent = revokeTelemedicineConsent(consentRecord, new Date());
+      const { error } = await supabase.auth.updateUser({
+        data: { health_privacy_consent: nextConsent },
+      });
+      if (error) throw error;
+      await authUserQuery.refetch();
+      toast.success("Consentimiento de telemedicina revocado correctamente.");
+    } catch {
+      toast.error("No pudimos actualizar tu preferencia de consentimiento.");
+    } finally {
+      setSavingConsent(false);
+    }
+  }
+
+  async function handleDownloadClinicalData() {
+    if (!profile.data) {
+      toast.error("Guarda primero tus datos básicos antes de descargar tu ficha.");
+      return;
+    }
+
+    setExportingData(true);
+    try {
+      const [apptsRes, notesRes] = await Promise.all([
+        supabase
+          .from("appointments")
+          .select(
+            "id, appointment_date, start_time, end_time, modality, status, booking_code, order_code, doctor:doctors(full_name, specialty)",
+          )
+          .eq("patient_id", profile.data.id)
+          .order("appointment_date", { ascending: false }),
+        supabase
+          .from("consultation_notes")
+          .select(
+            "id, appointment_id, created_at, updated_at, diagnosis, treatment_plan, prescriptions, observations",
+          )
+          .eq("patient_id", profile.data.id)
+          .order("created_at", { ascending: false }),
+      ]);
+
+      if (apptsRes.error) throw apptsRes.error;
+      if (notesRes.error) throw notesRes.error;
+
+      type DoctorMeta = { full_name?: string | null; specialty?: string | null };
+      type ApptRow = {
+        id: string;
+        appointment_date: string;
+        start_time: string;
+        end_time: string;
+        modality: string;
+        status: string | null;
+        booking_code: string | null;
+        order_code: string | null;
+        doctor: DoctorMeta | DoctorMeta[] | null;
+      };
+
+      const exportPayload = buildPatientDataExport({
+        patient: profile.data,
+        consent: consentRecord,
+        appointments: ((apptsRes.data ?? []) as unknown as ApptRow[]).map((a) => {
+          const doc = Array.isArray(a.doctor) ? (a.doctor[0] ?? null) : a.doctor;
+          return {
+            id: a.id,
+            appointment_date: a.appointment_date,
+            start_time: a.start_time,
+            end_time: a.end_time,
+            modality: a.modality,
+            status: a.status,
+            booking_code: a.booking_code,
+            order_code: a.order_code,
+            doctor_name: doc?.full_name ?? null,
+            specialty: doc?.specialty ?? null,
+          };
+        }),
+        clinicalNotes: notesRes.data ?? [],
+      });
+
+      const blob = new Blob([JSON.stringify(exportPayload, null, 2)], {
+        type: "application/json;charset=utf-8",
+      });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = buildPatientExportFilename(
+        profile.data.rut_dni || profile.data.full_name,
+      );
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+
+      toast.success("Copia de tu ficha y datos descargada.");
+    } catch (err) {
+      console.error("Error al exportar datos clínicos:", err);
+      toast.error("No pudimos generar la descarga de tus datos en este momento.");
+    } finally {
+      setExportingData(false);
+    }
+  }
 
   const profile = useQuery({
     queryKey: ["patient-profile"],
@@ -285,6 +426,98 @@ function PatientProfile() {
                       )}
                     />
                   ))}
+                </CardContent>
+              </Card>
+
+              <Card className="border-primary/20 shadow-none">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <LockKeyhole className="size-5 text-primary" aria-hidden="true" />
+                    Privacidad y Derechos del Titular (Ley N° 19.628 y N° 20.584)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4 text-sm">
+                  <div className="rounded-lg border border-border bg-surface-subtle/60 p-3.5">
+                    {consentRecord ? (
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="space-y-1">
+                          <p className="font-semibold text-foreground">
+                            Consentimiento informado activo ({consentRecord.version})
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Registrado el{" "}
+                            {new Date(consentRecord.acceptedAt).toLocaleDateString("es-CL", {
+                              dateStyle: "long",
+                            })}{" "}
+                            ·{" "}
+                            {consentRecord.telemedicineRevokedAt
+                              ? "Telemedicina revocada por el titular (custodia clínica vigente según Ley N° 20.584 Art. 13)."
+                              : `Alcance: ficha clínica, datos sensibles y telemedicina (${consentRecord.lawReference}).`}
+                          </p>
+                        </div>
+                        {consentRecord.telemedicineRevokedAt ? (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={savingConsent}
+                            onClick={() => void handleAcceptConsent()}
+                          >
+                            {savingConsent ? "Actualizando…" : "Reactivar telemedicina"}
+                          </Button>
+                        ) : (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                            disabled={savingConsent}
+                            onClick={() => void handleRevokeTelemedicine()}
+                          >
+                            {savingConsent ? "Procesando…" : "Revocar telemedicina"}
+                          </Button>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <p className="text-xs text-muted-foreground">
+                          Aún no registras confirmación explícita de consentimiento en tu sesión para telemedicina y resguardo clínico.
+                        </p>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={savingConsent}
+                          onClick={() => void handleAcceptConsent()}
+                        >
+                          {savingConsent ? "Registrando…" : "Confirmar consentimiento"}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <p className="text-xs text-muted-foreground">
+                      Puedes descargar una copia estructurada (JSON) de tu perfil, citas y ficha clínica o revisar nuestra{" "}
+                      <Link
+                        to="/privacidad"
+                        className="font-semibold text-primary underline underline-offset-2"
+                      >
+                        política de datos de salud
+                      </Link>
+                      .
+                    </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={exportingData || !profile.data}
+                      onClick={() => void handleDownloadClinicalData()}
+                      className="min-h-10 gap-2"
+                    >
+                      <Download className="size-4" aria-hidden="true" />
+                      {exportingData ? "Generando archivo…" : "Descargar mis datos clínicos"}
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
 

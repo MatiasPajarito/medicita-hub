@@ -15,6 +15,7 @@ import { Route as AccesoRouteImport } from './routes/acceso'
 import { Route as BuscarCitasRouteImport } from './routes/buscar-citas'
 import { Route as MedicosRouteImport } from './routes/medicos'
 import { Route as PortalProfesionalRouteImport } from './routes/portal-profesional'
+import { Route as PrivacidadRouteImport } from './routes/privacidad'
 import { Route as RecepcionRouteImport } from './routes/recepcion'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedMiAgendaRouteImport } from './routes/_authenticated/mi-agenda'
@@ -22,6 +23,7 @@ import { Route as AuthenticatedPerfilRouteImport } from './routes/_authenticated
 import { Route as AdminDoctoresRouteImport } from './routes/admin/doctores'
 import { Route as AuthenticatedDoctorCitasRouteImport } from './routes/_authenticated/doctor/citas'
 import { Route as AuthenticatedDoctorDisponibilidadRouteImport } from './routes/_authenticated/doctor/disponibilidad'
+import { Route as AuthenticatedVideoconsultaAppointmentIdRouteImport } from './routes/_authenticated/videoconsulta.$appointmentId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -50,6 +52,11 @@ const MedicosRoute = MedicosRouteImport.update({
 const PortalProfesionalRoute = PortalProfesionalRouteImport.update({
   id: '/portal-profesional',
   path: '/portal-profesional',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacidadRoute = PrivacidadRouteImport.update({
+  id: '/privacidad',
+  path: '/privacidad',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RecepcionRoute = RecepcionRouteImport.update({
@@ -89,6 +96,12 @@ const AuthenticatedDoctorDisponibilidadRoute =
     path: '/doctor/disponibilidad',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedVideoconsultaAppointmentIdRoute =
+  AuthenticatedVideoconsultaAppointmentIdRouteImport.update({
+    id: '/videoconsulta/$appointmentId',
+    path: '/videoconsulta/$appointmentId',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -96,6 +109,7 @@ export interface FileRoutesByFullPath {
   '/buscar-citas': typeof BuscarCitasRoute
   '/medicos': typeof MedicosRoute
   '/portal-profesional': typeof PortalProfesionalRoute
+  '/privacidad': typeof PrivacidadRoute
   '/recepcion': typeof RecepcionRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/mi-agenda': typeof AuthenticatedMiAgendaRoute
@@ -103,6 +117,7 @@ export interface FileRoutesByFullPath {
   '/admin/doctores': typeof AdminDoctoresRoute
   '/doctor/citas': typeof AuthenticatedDoctorCitasRoute
   '/doctor/disponibilidad': typeof AuthenticatedDoctorDisponibilidadRoute
+  '/videoconsulta/$appointmentId': typeof AuthenticatedVideoconsultaAppointmentIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -110,6 +125,7 @@ export interface FileRoutesByTo {
   '/buscar-citas': typeof BuscarCitasRoute
   '/medicos': typeof MedicosRoute
   '/portal-profesional': typeof PortalProfesionalRoute
+  '/privacidad': typeof PrivacidadRoute
   '/recepcion': typeof RecepcionRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/mi-agenda': typeof AuthenticatedMiAgendaRoute
@@ -117,6 +133,7 @@ export interface FileRoutesByTo {
   '/admin/doctores': typeof AdminDoctoresRoute
   '/doctor/citas': typeof AuthenticatedDoctorCitasRoute
   '/doctor/disponibilidad': typeof AuthenticatedDoctorDisponibilidadRoute
+  '/videoconsulta/$appointmentId': typeof AuthenticatedVideoconsultaAppointmentIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -126,6 +143,7 @@ export interface FileRoutesById {
   '/buscar-citas': typeof BuscarCitasRoute
   '/medicos': typeof MedicosRoute
   '/portal-profesional': typeof PortalProfesionalRoute
+  '/privacidad': typeof PrivacidadRoute
   '/recepcion': typeof RecepcionRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/mi-agenda': typeof AuthenticatedMiAgendaRoute
@@ -133,6 +151,7 @@ export interface FileRoutesById {
   '/admin/doctores': typeof AdminDoctoresRoute
   '/_authenticated/doctor/citas': typeof AuthenticatedDoctorCitasRoute
   '/_authenticated/doctor/disponibilidad': typeof AuthenticatedDoctorDisponibilidadRoute
+  '/_authenticated/videoconsulta/$appointmentId': typeof AuthenticatedVideoconsultaAppointmentIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -142,6 +161,7 @@ export interface FileRouteTypes {
     | '/buscar-citas'
     | '/medicos'
     | '/portal-profesional'
+    | '/privacidad'
     | '/recepcion'
     | '/admin'
     | '/mi-agenda'
@@ -149,6 +169,7 @@ export interface FileRouteTypes {
     | '/admin/doctores'
     | '/doctor/citas'
     | '/doctor/disponibilidad'
+    | '/videoconsulta/$appointmentId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -156,6 +177,7 @@ export interface FileRouteTypes {
     | '/buscar-citas'
     | '/medicos'
     | '/portal-profesional'
+    | '/privacidad'
     | '/recepcion'
     | '/admin'
     | '/mi-agenda'
@@ -163,6 +185,7 @@ export interface FileRouteTypes {
     | '/admin/doctores'
     | '/doctor/citas'
     | '/doctor/disponibilidad'
+    | '/videoconsulta/$appointmentId'
   id:
     | '__root__'
     | '/'
@@ -171,6 +194,7 @@ export interface FileRouteTypes {
     | '/buscar-citas'
     | '/medicos'
     | '/portal-profesional'
+    | '/privacidad'
     | '/recepcion'
     | '/_authenticated/admin'
     | '/_authenticated/mi-agenda'
@@ -178,6 +202,7 @@ export interface FileRouteTypes {
     | '/admin/doctores'
     | '/_authenticated/doctor/citas'
     | '/_authenticated/doctor/disponibilidad'
+    | '/_authenticated/videoconsulta/$appointmentId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -187,6 +212,7 @@ export interface RootRouteChildren {
   BuscarCitasRoute: typeof BuscarCitasRoute
   MedicosRoute: typeof MedicosRoute
   PortalProfesionalRoute: typeof PortalProfesionalRoute
+  PrivacidadRoute: typeof PrivacidadRoute
   RecepcionRoute: typeof RecepcionRoute
   AdminDoctoresRoute: typeof AdminDoctoresRoute
 }
@@ -233,6 +259,13 @@ declare module '@tanstack/react-router' {
       path: '/portal-profesional'
       fullPath: '/portal-profesional'
       preLoaderRoute: typeof PortalProfesionalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacidad': {
+      id: '/privacidad'
+      path: '/privacidad'
+      fullPath: '/privacidad'
+      preLoaderRoute: typeof PrivacidadRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/recepcion': {
@@ -284,6 +317,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDoctorDisponibilidadRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/videoconsulta/$appointmentId': {
+      id: '/_authenticated/videoconsulta/$appointmentId'
+      path: '/videoconsulta/$appointmentId'
+      fullPath: '/videoconsulta/$appointmentId'
+      preLoaderRoute: typeof AuthenticatedVideoconsultaAppointmentIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
@@ -293,6 +333,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedPerfilRoute: typeof AuthenticatedPerfilRoute
   AuthenticatedDoctorCitasRoute: typeof AuthenticatedDoctorCitasRoute
   AuthenticatedDoctorDisponibilidadRoute: typeof AuthenticatedDoctorDisponibilidadRoute
+  AuthenticatedVideoconsultaAppointmentIdRoute: typeof AuthenticatedVideoconsultaAppointmentIdRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -302,6 +343,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDoctorCitasRoute: AuthenticatedDoctorCitasRoute,
   AuthenticatedDoctorDisponibilidadRoute:
     AuthenticatedDoctorDisponibilidadRoute,
+  AuthenticatedVideoconsultaAppointmentIdRoute:
+    AuthenticatedVideoconsultaAppointmentIdRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
@@ -314,6 +357,7 @@ const rootRouteChildren: RootRouteChildren = {
   BuscarCitasRoute: BuscarCitasRoute,
   MedicosRoute: MedicosRoute,
   PortalProfesionalRoute: PortalProfesionalRoute,
+  PrivacidadRoute: PrivacidadRoute,
   RecepcionRoute: RecepcionRoute,
   AdminDoctoresRoute: AdminDoctoresRoute,
 }
