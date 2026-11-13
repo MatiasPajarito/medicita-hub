@@ -80,8 +80,6 @@ describe("health-privacy compliance helpers", () => {
           status: "agendada",
           doctor_name: "Dr. Juan Lagos",
           specialty: "Cardiología",
-          booking_code: "MC-001",
-          order_code: "ORD-001",
         },
       ],
       clinicalNotes: [

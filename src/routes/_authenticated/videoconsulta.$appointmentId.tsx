@@ -33,7 +33,7 @@ type PatientInfo = {
   user_id: string;
 };
 
-interface LoadedAppointmentRow {
+interface BaseAppointmentRow {
   id: string;
   doctor_id: string;
   patient_id: string;
@@ -42,9 +42,6 @@ interface LoadedAppointmentRow {
   end_time: string;
   modality: string;
   status: string;
-  booking_code: string | null;
-  doctor: DoctorInfo | DoctorInfo[] | null;
-  patient: PatientInfo | PatientInfo[] | null;
 }
 
 function unwrapSingle<T>(value: T | T[] | null | undefined): T | null {
@@ -61,58 +58,53 @@ function VideoconsultaRoutePage() {
     queryKey: ["teleconsulta-appointment", appointmentId, user.id],
     enabled: Boolean(appointmentId),
     queryFn: async () => {
-      const [{ data: fullJoin, error: joinError }, { data: rolesData }] = await Promise.all([
+      const [{ data: baseAppointment, error: baseError }, { data: rolesData }] = await Promise.all([
         supabase
           .from("appointments")
           .select(
-            "id, doctor_id, patient_id, appointment_date, start_time, end_time, modality, status, booking_code, doctor:doctors(id, full_name, specialty, user_id), patient:patients(id, full_name, rut_dni, email, phone, user_id)",
+            "id, doctor_id, patient_id, appointment_date, start_time, end_time, modality, status",
           )
           .eq("id", appointmentId)
           .maybeSingle(),
         supabase.from("user_roles").select("role").eq("user_id", user.id),
       ]);
 
-      let appointmentRow: LoadedAppointmentRow | null = null;
-      if (!joinError && fullJoin) {
-        appointmentRow = fullJoin as unknown as LoadedAppointmentRow;
-      } else {
-        // Fallback when nested patients RLS prevents doctor/admin embedded reads
-        const { data: basicJoin, error: basicError } = await supabase
-          .from("appointments")
-          .select(
-            "id, doctor_id, patient_id, appointment_date, start_time, end_time, modality, status, booking_code, doctor:doctors(id, full_name, specialty, user_id)",
-          )
-          .eq("id", appointmentId)
-          .maybeSingle();
+      if (baseError) throw baseError;
+      if (!baseAppointment) return null;
 
-        if (basicError) throw basicError;
-        if (basicJoin) {
-          appointmentRow = {
-            ...(basicJoin as unknown as Omit<LoadedAppointmentRow, "patient">),
-            patient: null,
-          };
-        }
-      }
+      const typedBase = baseAppointment as BaseAppointmentRow;
 
-      if (!appointmentRow) return null;
+      // Query doctor and patient independently so strict RLS on one relation
+      // never causes the entire appointment lookup to fail.
+      const [docRes, patRes] = await Promise.all([
+        supabase
+          .from("doctors")
+          .select("id, full_name, specialty, user_id")
+          .eq("id", typedBase.doctor_id)
+          .maybeSingle(),
+        supabase
+          .from("patients")
+          .select("id, full_name, rut_dni, email, phone, user_id")
+          .eq("id", typedBase.patient_id)
+          .maybeSingle(),
+      ]);
 
-      const doctorInfo = unwrapSingle(appointmentRow.doctor);
-      let patientInfo = unwrapSingle(appointmentRow.patient);
+      const doctorInfo = unwrapSingle(docRes.data as DoctorInfo | DoctorInfo[] | null);
+      let patientInfo = unwrapSingle(patRes.data as PatientInfo | PatientInfo[] | null);
 
       if (!patientInfo) {
         const { data: ownPatient } = await supabase
           .from("patients")
           .select("id, full_name, rut_dni, email, phone, user_id")
-          .eq("id", appointmentRow.patient_id)
           .eq("user_id", user.id)
           .maybeSingle();
-        if (ownPatient) {
+        if (ownPatient && ownPatient.id === typedBase.patient_id) {
           patientInfo = ownPatient;
         }
       }
 
       const userRoles = (rolesData ?? []).map((r) => r.role);
-      const isPatientOwner = patientInfo?.user_id === user.id;
+      const isPatientOwner = patientInfo?.user_id === user.id || typedBase.patient_id === user.id;
       const isDoctorOwner = doctorInfo?.user_id === user.id;
       const isAdmin = userRoles.includes("admin");
 
@@ -125,13 +117,13 @@ function VideoconsultaRoutePage() {
         const { data: noteData } = await supabase
           .from("consultation_notes")
           .select("*")
-          .eq("appointment_id", appointmentRow.id)
+          .eq("appointment_id", typedBase.id)
           .maybeSingle();
         existingNote = (noteData as ConsultationNoteRecord | null) ?? null;
       }
 
       return {
-        appointment: appointmentRow,
+        appointment: typedBase,
         doctorInfo,
         patientInfo,
         existingNote,
@@ -154,6 +146,9 @@ function VideoconsultaRoutePage() {
   }
 
   if (query.isError || !query.data) {
+    if (query.error) {
+      console.error("Error cargando videoconsulta:", query.error);
+    }
     const unauthorized =
       query.error instanceof Error && query.error.message === "UNAUTHORIZED_APPOINTMENT";
     return (
@@ -229,7 +224,7 @@ function VideoconsultaRoutePage() {
           end_time: appointment.end_time,
           modality: appointment.modality,
           status: appointment.status,
-          bookingCode: appointment.booking_code ?? null,
+          bookingCode: null,
           doctorName: doctorInfo?.full_name ?? "Profesional MediCita",
           doctorSpecialty: doctorInfo?.specialty ?? "Telemedicina",
           patientName: patientInfo?.full_name ?? "Paciente",

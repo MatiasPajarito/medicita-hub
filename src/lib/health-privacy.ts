@@ -127,8 +127,6 @@ export interface ExportableAppointment {
   end_time: string;
   modality: string;
   status: string | null;
-  booking_code?: string | null;
-  order_code?: string | null;
   doctor_name?: string | null;
   specialty?: string | null;
 }

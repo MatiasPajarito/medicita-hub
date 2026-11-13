@@ -138,7 +138,7 @@ function PatientProfile() {
         supabase
           .from("appointments")
           .select(
-            "id, appointment_date, start_time, end_time, modality, status, booking_code, order_code, doctor:doctors(full_name, specialty)",
+            "id, appointment_date, start_time, end_time, modality, status, doctor:doctors(full_name, specialty)",
           )
           .eq("patient_id", profile.data.id)
           .order("appointment_date", { ascending: false }),
@@ -152,7 +152,6 @@ function PatientProfile() {
       ]);
 
       if (apptsRes.error) throw apptsRes.error;
-      if (notesRes.error) throw notesRes.error;
 
       type DoctorMeta = { full_name?: string | null; specialty?: string | null };
       type ApptRow = {
@@ -162,8 +161,6 @@ function PatientProfile() {
         end_time: string;
         modality: string;
         status: string | null;
-        booking_code: string | null;
-        order_code: string | null;
         doctor: DoctorMeta | DoctorMeta[] | null;
       };
 
@@ -179,13 +176,11 @@ function PatientProfile() {
             end_time: a.end_time,
             modality: a.modality,
             status: a.status,
-            booking_code: a.booking_code,
-            order_code: a.order_code,
             doctor_name: doc?.full_name ?? null,
             specialty: doc?.specialty ?? null,
           };
         }),
-        clinicalNotes: notesRes.data ?? [],
+        clinicalNotes: !notesRes.error && notesRes.data ? notesRes.data : [],
       });
 
       const blob = new Blob([JSON.stringify(exportPayload, null, 2)], {
