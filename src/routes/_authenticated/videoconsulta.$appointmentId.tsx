@@ -49,77 +49,97 @@ function unwrapSingle<T>(value: T | T[] | null | undefined): T | null {
   return Array.isArray(value) ? (value[0] ?? null) : value;
 }
 
+function formatSupabaseError(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === "object") {
+    const obj = error as { message?: unknown; code?: unknown; details?: unknown };
+    const parts = [obj.code, obj.message, obj.details].filter(
+      (v): v is string => typeof v === "string" && v.trim().length > 0,
+    );
+    if (parts.length > 0) return parts.join(" — ");
+  }
+  return "Error desconocido al consultar la cita.";
+}
+
 function VideoconsultaRoutePage() {
   const { appointmentId } = Route.useParams();
   const { user } = Route.useRouteContext();
   const [noteOpen, setNoteOpen] = useState(false);
 
   const query = useQuery({
-    queryKey: ["teleconsulta-appointment", appointmentId, user.id],
+    queryKey: ["teleconsulta-appointment-v2", appointmentId, user.id],
     enabled: Boolean(appointmentId),
+    retry: false,
     queryFn: async () => {
-      const [{ data: baseAppointment, error: baseError }, { data: rolesData }] = await Promise.all([
+      const [apptRes, rolesRes] = await Promise.all([
         supabase
           .from("appointments")
           .select(
             "id, doctor_id, patient_id, appointment_date, start_time, end_time, modality, status",
           )
           .eq("id", appointmentId)
-          .maybeSingle(),
+          .limit(1),
         supabase.from("user_roles").select("role").eq("user_id", user.id),
       ]);
 
-      if (baseError) throw baseError;
-      if (!baseAppointment) return null;
+      if (apptRes.error) {
+        throw new Error(formatSupabaseError(apptRes.error));
+      }
 
-      const typedBase = baseAppointment as BaseAppointmentRow;
+      const typedBase = (apptRes.data?.[0] as BaseAppointmentRow | undefined) ?? null;
+      if (!typedBase) {
+        throw new Error(
+          `APPOINTMENT_NOT_FOUND: No se encontró la cita (${appointmentId}) o las políticas de acceso no devolvieron registros.`,
+        );
+      }
 
-      // Query doctor and patient independently so strict RLS on one relation
-      // never causes the entire appointment lookup to fail.
       const [docRes, patRes] = await Promise.all([
         supabase
           .from("doctors")
           .select("id, full_name, specialty, user_id")
           .eq("id", typedBase.doctor_id)
-          .maybeSingle(),
+          .limit(1),
         supabase
           .from("patients")
           .select("id, full_name, rut_dni, email, phone, user_id")
           .eq("id", typedBase.patient_id)
-          .maybeSingle(),
+          .limit(1),
       ]);
 
-      const doctorInfo = unwrapSingle(docRes.data as DoctorInfo | DoctorInfo[] | null);
-      let patientInfo = unwrapSingle(patRes.data as PatientInfo | PatientInfo[] | null);
+      const doctorInfo = unwrapSingle(docRes.data as DoctorInfo[] | null);
+      let patientInfo = unwrapSingle(patRes.data as PatientInfo[] | null);
 
       if (!patientInfo) {
-        const { data: ownPatient } = await supabase
+        const ownRes = await supabase
           .from("patients")
           .select("id, full_name, rut_dni, email, phone, user_id")
           .eq("user_id", user.id)
-          .maybeSingle();
+          .limit(1);
+        const ownPatient = unwrapSingle(ownRes.data as PatientInfo[] | null);
         if (ownPatient && ownPatient.id === typedBase.patient_id) {
           patientInfo = ownPatient;
         }
       }
 
-      const userRoles = (rolesData ?? []).map((r) => r.role);
+      const userRoles = (rolesRes.data ?? []).map((r) => r.role);
       const isPatientOwner = patientInfo?.user_id === user.id || typedBase.patient_id === user.id;
       const isDoctorOwner = doctorInfo?.user_id === user.id;
       const isAdmin = userRoles.includes("admin");
 
       if (!isPatientOwner && !isDoctorOwner && !isAdmin) {
-        throw new Error("UNAUTHORIZED_APPOINTMENT");
+        throw new Error(
+          `UNAUTHORIZED_APPOINTMENT: Tu usuario no coincide con el paciente ni el médico asignado (doc=${String(Boolean(doctorInfo))}, pat=${String(Boolean(patientInfo))}).`,
+        );
       }
 
       let existingNote: ConsultationNoteRecord | null = null;
       if (isDoctorOwner || isAdmin) {
-        const { data: noteData } = await supabase
+        const { data: noteRows } = await supabase
           .from("consultation_notes")
           .select("*")
           .eq("appointment_id", typedBase.id)
-          .maybeSingle();
-        existingNote = (noteData as ConsultationNoteRecord | null) ?? null;
+          .limit(1);
+        existingNote = (noteRows?.[0] as ConsultationNoteRecord | undefined) ?? null;
       }
 
       return {
@@ -146,11 +166,11 @@ function VideoconsultaRoutePage() {
   }
 
   if (query.isError || !query.data) {
+    const errorMsg = formatSupabaseError(query.error);
+    const unauthorized = errorMsg.startsWith("UNAUTHORIZED_APPOINTMENT");
     if (query.error) {
       console.error("Error cargando videoconsulta:", query.error);
     }
-    const unauthorized =
-      query.error instanceof Error && query.error.message === "UNAUTHORIZED_APPOINTMENT";
     return (
       <div className="mx-auto max-w-2xl px-4 py-12">
         <Card className="border-border bg-card shadow-card">
@@ -167,6 +187,9 @@ function VideoconsultaRoutePage() {
               {unauthorized
                 ? "Solo el paciente titular y el profesional tratante pueden acceder a esta sala clínica (Ley N° 20.584)."
                 : "Verifica que la cita exista y corresponda a una atención por telemedicina."}
+            </p>
+            <p className="w-full break-words rounded-md border border-border bg-surface-subtle/60 px-3 py-2 font-mono text-xs text-muted-foreground">
+              Detalle: {errorMsg}
             </p>
             <Button asChild variant="default" className="gap-2">
               <Link to="/mi-agenda" search={{ tab: "upcoming" }}>
